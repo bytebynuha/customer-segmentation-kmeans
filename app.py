@@ -1,498 +1,1308 @@
 
 import os
-import html
-import textwrap
+import re
 from pathlib import Path
 from io import BytesIO
+from html import escape
 
 import numpy as np
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score
 
 
 # ============================================================
 # 1. CONFIGURATION
 # ============================================================
 
-BASE_DIR = Path(__file__).parent
-DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR / "data"))
+DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 st.set_page_config(
-    page_title="CLUSTERO | Customer Intelligence Studio",
+    page_title="CLUSTERO | Customer Segmentation",
     page_icon="✳",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-COLORS = [
-    "#D5FF36",
-    "#F477CE",
-    "#A99AFF",
-    "#FFD52E",
-    "#55D9C0",
-    "#FF8A65",
-    "#65B8FF",
-    "#E6A8FF"
+PALETTE = [
+    "#FF6FAE",
+    "#A78BFA",
+    "#43D9B8",
+    "#FFD447",
+    "#FF9878",
+    "#62B8FF",
+    "#B6DF69",
+    "#F4A6FF"
 ]
 
-BACKGROUND = "#111111"
-CARD = "#202020"
-TEXT = "#F5F5F5"
-MUTED = "#B9B9B9"
-ACCENT = "#D5FF36"
+FEATURES = ["Age", "Annual Income", "Spending Score"]
+
+PLOT_CONFIG = {
+    "displayModeBar": True,
+    "scrollZoom": True,
+    "displaylogo": False,
+    "responsive": True,
+    "toImageButtonOptions": {
+        "format": "png",
+        "filename": "clustero-chart",
+        "scale": 2
+    }
+}
 
 
 # ============================================================
-# 2. CSS DESIGN
+# 2. CUSTOM CSS
 # ============================================================
 
-CSS = """
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'DM Sans', sans-serif;
-    }
+:root {
+    --ink: #191923;
+    --cream: #FFF9F1;
+    --pink: #FFB4D2;
+    --purple: #BDA9FF;
+    --yellow: #FFD447;
+    --mint: #9BE8D3;
+    --coral: #FF9878;
+    --border: #191923;
+}
 
-    .stApp {
-        background: #111111;
-        color: #F5F5F5;
-    }
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif !important;
+}
 
-    [data-testid="stHeader"] {
-        background: rgba(17,17,17,0.95);
-    }
+.stApp {
+    background: var(--cream) !important;
+    color: var(--ink) !important;
+}
 
-    [data-testid="stSidebar"] {
-        background: #191919;
-        border-right: 1px solid #373737;
-    }
+[data-testid="stAppViewContainer"] {
+    background:
+        radial-gradient(circle at 85% 5%, #F9DDF0 0, transparent 28%),
+        radial-gradient(circle at 10% 30%, #FFF0C7 0, transparent 25%),
+        var(--cream) !important;
+}
 
-    [data-testid="stSidebar"] * {
-        color: #F5F5F5;
-    }
+[data-testid="stHeader"] {
+    background: rgba(255,249,241,.85) !important;
+}
 
-    .block-container {
-        max-width: 1500px;
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-    }
+.main .block-container {
+    max-width: 1600px;
+    padding: 1.5rem 2.1rem 3rem;
+}
 
-    h1, h2, h3, h4, p, label {
-        color: #F5F5F5;
-    }
+h1, h2, h3, h4 {
+    color: var(--ink) !important;
+    font-weight: 900 !important;
+    letter-spacing: -1px;
+}
 
-    h1 {
-        font-weight: 900 !important;
-        letter-spacing: -2px;
-    }
+p, label, li, span {
+    color: var(--ink);
+}
 
-    h2, h3 {
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
+[data-testid="stSidebar"] {
+    background: linear-gradient(
+        160deg,
+        #FFD966 0%,
+        #FFB8D0 48%,
+        #C6B4FF 100%
+    ) !important;
+    border-right: 3px solid var(--ink);
+}
 
-    [data-testid="stMetric"] {
-        background: #202020;
-        border: 1px solid #444444;
-        border-radius: 12px;
-        padding: 18px;
-    }
+[data-testid="stSidebar"] * {
+    color: var(--ink) !important;
+}
 
-    [data-testid="stMetricLabel"] {
-        color: #D0D0D0 !important;
-    }
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    font-weight: 900 !important;
+}
 
-    [data-testid="stMetricValue"] {
-        color: #FFFFFF !important;
-        font-weight: 900;
-    }
+.brand {
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -2px;
+}
 
-    [data-testid="stMetricDelta"] {
-        color: #D5FF36 !important;
-    }
+.brand-star {
+    color: #FF4F91;
+}
 
-    .stButton > button {
-        background: #D5FF36;
-        color: #111111;
-        font-weight: 800;
-        border: none;
-        border-radius: 8px;
-        min-height: 45px;
-    }
+.brand-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-top: 5px;
+}
 
-    .stButton > button:hover {
-        background: #E5FF75;
-        color: #111111;
-        border: none;
-    }
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0 20px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 28px;
+}
 
-    .stDownloadButton > button {
-        background: #F477CE;
-        color: #111111;
-        font-weight: 800;
-        border: none;
-        border-radius: 8px;
-    }
+.topbar-tag {
+    background: white;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 12px 18px;
+    box-shadow: 4px 4px 0 var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+}
 
-    .stTabs [data-baseweb="tab"] {
-        color: #FFFFFF;
-        font-weight: 700;
-    }
+.hero {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.3fr .7fr;
+    gap: 20px;
+    padding: 42px;
+    margin-bottom: 35px;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    background: linear-gradient(
+        115deg,
+        #FFD95B 0%,
+        #FFB1C9 53%,
+        #BDA9FF 100%
+    );
+    box-shadow: 9px 9px 0 var(--ink);
+    animation: appear .65s ease-out;
+}
 
-    .stTabs [aria-selected="true"] {
-        color: #D5FF36 !important;
-    }
+.hero-kicker {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+}
 
-    [data-testid="stDataFrame"] {
-        border: 1px solid #444444;
-        border-radius: 10px;
-        overflow: hidden;
-    }
+.hero-title {
+    font-size: clamp(42px, 5vw, 76px);
+    line-height: .99;
+    font-weight: 900;
+    letter-spacing: -4px;
+}
 
-    [data-testid="stFileUploader"] {
-        background: #202020;
-        border: 1px dashed #777777;
-        border-radius: 12px;
-        padding: 12px;
-    }
+.hero-highlight {
+    color: #FFFFFF;
+    text-shadow: 3px 3px 0 var(--ink);
+}
 
-    div[data-testid="stAlert"] {
-        border-radius: 10px;
-    }
+.hero-subtitle {
+    font-size: 21px;
+    font-weight: 800;
+    margin-top: 22px;
+}
 
-    hr {
-        border-color: #414141;
-    }
+.hero-description {
+    max-width: 550px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.8;
+    margin-top: 12px;
+}
 
-    .brand {
-        font-size: 25px;
-        font-weight: 900;
-        letter-spacing: -1px;
-        color: #FFFFFF;
-    }
+.hero-art {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    min-height: 250px;
+}
 
-    .brand-star {
-        color: #D5FF36;
-    }
+.hero-coin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 205px;
+    height: 205px;
+    border: 4px solid var(--ink);
+    border-radius: 50%;
+    background: #FF75B9;
+    color: var(--ink);
+    font-size: 130px;
+    font-weight: 900;
+    transform: rotate(-13deg);
+    box-shadow: 12px 13px 0 var(--ink);
+    animation: float 4s ease-in-out infinite;
+}
 
+.hero-star {
+    position: absolute;
+    font-size: 65px;
+    font-weight: 900;
+}
+
+.star-one {
+    right: 5%;
+    top: 2%;
+}
+
+.star-two {
+    left: 2%;
+    bottom: 0;
+}
+
+.section-kicker {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #7653DD;
+    margin-bottom: 9px;
+}
+
+.section-heading {
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: 17px;
+}
+
+.panel {
+    padding: 22px;
+    margin-bottom: 18px;
+    background: rgba(255,255,255,.76);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 2px solid var(--ink);
+    border-radius: 13px;
+    box-shadow: 5px 5px 0 var(--ink);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.panel:hover {
+    transform: translateY(-3px);
+    box-shadow: 8px 8px 0 var(--ink);
+}
+
+.panel-title {
+    font-size: 19px;
+    font-weight: 900;
+}
+
+.panel-caption {
+    color: #49434F;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+    margin-top: 6px;
+}
+
+.metric-card {
+    min-height: 135px;
+    padding: 20px;
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    box-shadow: 5px 5px 0 var(--ink);
+    transition: transform .2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px) rotate(-1deg);
+}
+
+.metric-card.pink { background: #FFB4D2; }
+.metric-card.purple { background: #BDA9FF; }
+.metric-card.yellow { background: #FFD447; }
+.metric-card.mint { background: #9BE8D3; }
+
+.metric-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.metric-number {
+    font-size: 37px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    margin-top: 13px;
+}
+
+.metric-note {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.segment-card {
+    background: rgba(255,255,255,.8);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    padding: 19px;
+    margin-bottom: 13px;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform .2s ease;
+}
+
+.segment-card:hover {
+    transform: translateX(5px);
+}
+
+.segment-number {
+    font-family: 'Space Mono', monospace;
+    color: #7954E8;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.segment-title {
+    font-size: 19px;
+    font-weight: 900;
+    margin: 9px 0;
+}
+
+.segment-detail {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.8;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 9px;
+    background: transparent;
+}
+
+.stTabs [data-baseweb="tab"] {
+    background: white;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-weight: 800;
+    font-size: 14px;
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: #FFD447 !important;
+    color: var(--ink) !important;
+    border-bottom: 2px solid var(--ink) !important;
+}
+
+.stButton > button,
+.stDownloadButton > button {
+    min-height: 48px;
+    background: #FF78B9 !important;
+    color: #191923 !important;
+    border: 2px solid #191923 !important;
+    border-radius: 8px !important;
+    box-shadow: 4px 4px 0 #191923 !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+    transition: all .2s ease;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    background: #FFD447 !important;
+    color: #191923 !important;
+    transform: translate(-2px,-2px);
+    box-shadow: 6px 6px 0 #191923 !important;
+}
+
+.stSelectbox label,
+.stSlider label,
+.stNumberInput label,
+.stRadio label,
+.stMultiSelect label {
+    font-weight: 800 !important;
+    font-size: 14px !important;
+}
+
+.stSelectbox [data-baseweb="select"] > div {
+    min-height: 48px;
+    background: white !important;
+    border: 2px solid var(--ink) !important;
+    border-radius: 8px !important;
+}
+
+.stNumberInput input {
+    min-height: 45px;
+    background: white !important;
+    color: var(--ink) !important;
+    border: 2px solid var(--ink) !important;
+    border-radius: 8px !important;
+}
+
+.stRadio [role="radiogroup"] {
+    gap: 14px;
+}
+
+
+/* ============================================================
+   CSV UPLOADER — CLUSTERO NEO-BRUTALIST FIX
+   ============================================================ */
+
+/* Main uploader container */
+[data-testid="stFileUploader"] {
+    width: 100% !important;
+    background: rgba(255,255,255,.65) !important;
+    border: 2px dashed var(--ink) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
+}
+
+/* Upload dropzone */
+[data-testid="stFileUploader"] section,
+[data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 9px !important;
+}
+
+/* Upload instructions */
+[data-testid="stFileUploader"] section span,
+[data-testid="stFileUploader"] section small,
+[data-testid="stFileUploader"] section p {
+    color: #191923 !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+}
+
+/* Browse files button */
+[data-testid="stFileUploader"] section button {
+    background: #FFB4D2 !important;
+    color: #191923 !important;
+    border: 2px solid #191923 !important;
+    border-radius: 7px !important;
+    font-weight: 800 !important;
+    box-shadow: 2px 2px 0 #191923 !important;
+    transition: all .2s ease !important;
+}
+
+[data-testid="stFileUploader"] section button:hover {
+    background: #FFD447 !important;
+    color: #191923 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 4px 4px 0 #191923 !important;
+}
+
+/* Uploaded file preview */
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"],
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] > div {
+    background: #FFFFFF !important;
+    color: #191923 !important;
+    border: 1.5px solid #191923 !important;
+    border-radius: 9px !important;
+    box-shadow: 2px 2px 0 #191923 !important;
+    opacity: 1 !important;
+}
+
+/* Uploaded filename and file size */
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] *,
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] span,
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] small {
+    color: #191923 !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+}
+
+/* File preview icon */
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] svg {
+    color: #191923 !important;
+}
+
+/* Remove uploaded file button */
+[data-testid="stFileUploader"] button[aria-label*="Remove"],
+[data-testid="stFileUploader"] button[title*="Remove"] {
+    background: #FFB4D2 !important;
+    color: #191923 !important;
+    border: 1px solid #191923 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+/* Keep uploader responsive */
+[data-testid="stFileUploader"] > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+
+[data-testid="stDataFrame"] {
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+[data-testid="stMetric"] {
+    background: white;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-testid="stMetricLabel"] {
+    color: #51465D !important;
+    font-weight: 800 !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: var(--ink) !important;
+    font-weight: 900 !important;
+}
+
+div[data-testid="stCaptionContainer"] p {
+    color: #51465D !important;
+    font-weight: 600 !important;
+}
+
+.footer {
+    text-align: center;
+    padding: 28px;
+    margin-top: 35px;
+    background: linear-gradient(100deg,#FFD447,#FFB4D2,#BDA9FF);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    box-shadow: 5px 5px 0 var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 2;
+}
+
+@keyframes appear {
+    from {opacity:0; transform:translateY(15px);}
+    to {opacity:1; transform:translateY(0);}
+}
+
+@keyframes float {
+    0%,100% {transform:translateY(0) rotate(-13deg);}
+    50% {transform:translateY(-12px) rotate(-8deg);}
+}
+
+@media(max-width:850px) {
     .hero {
-        background: #202020;
-        border: 1px solid #454545;
-        border-radius: 15px;
-        padding: 35px;
-        margin: 15px 0 25px 0;
+        grid-template-columns:1fr;
+        padding:25px;
     }
 
-    .kicker {
-        color: #D5FF36;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 3px;
-    }
-
-    .hero-heading {
-        font-size: clamp(36px, 5vw, 65px);
-        line-height: 1.03;
-        font-weight: 900;
-        letter-spacing: -3px;
-        margin: 20px 0;
-        color: #FFFFFF;
-    }
-
-    .hero-highlight {
-        color: #D5FF36;
-    }
-
-    .hero-description {
-        color: #C6C6C6;
-        font-size: 15px;
-        line-height: 1.8;
-        max-width: 650px;
+    .hero-title {
+        font-size:43px;
+        letter-spacing:-2px;
     }
 
     .hero-art {
-        background: #D5FF36;
-        color: #111111;
-        border-radius: 15px;
-        min-height: 190px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 100px;
-        font-weight: 900;
+        min-height:210px;
     }
 
-    .section-label {
-        color: #D5FF36;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 3px;
-        margin-top: 15px;
+    .main .block-container {
+        padding:1rem;
     }
-
-    .segment-card {
-        background: #202020;
-        border: 1px solid #494949;
-        border-radius: 12px;
-        padding: 20px;
-        height: 100%;
-        margin-bottom: 12px;
-    }
-
-    .segment-number {
-        font-size: 10px;
-        color: #D5FF36;
-        font-weight: 800;
-        letter-spacing: 2px;
-    }
-
-    .segment-title {
-        color: #FFFFFF;
-        font-size: 21px;
-        font-weight: 900;
-        margin: 12px 0;
-    }
-
-    .segment-detail {
-        color: #D0D0D0;
-        font-size: 13px;
-        line-height: 2;
-    }
-
-    .segment-bar {
-        height: 7px;
-        border-radius: 8px;
-        margin-top: 15px;
-    }
-
-    .insight-card {
-        padding: 20px;
-        border-radius: 12px;
-        color: #111111;
-        min-height: 125px;
-        margin-bottom: 10px;
-    }
-
-    .insight-label {
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: 2px;
-    }
-
-    .insight-value {
-        font-size: 27px;
-        font-weight: 900;
-        margin-top: 12px;
-    }
-
-    .footer {
-        background: #202020;
-        border: 1px solid #454545;
-        border-radius: 12px;
-        padding: 30px;
-        text-align: center;
-        color: #D0D0D0;
-        line-height: 2.4;
-        font-size: 11px;
-        letter-spacing: 1.5px;
-        margin-top: 35px;
-    }
-
-    .footer-brand {
-        font-size: 28px;
-        font-weight: 900;
-        color: #FFFFFF;
-        letter-spacing: -1px;
-    }
-
-    .footer-star {
-        color: #D5FF36;
-    }
-
-    .small-muted {
-        color: #AFAFAF;
-        font-size: 12px;
-    }
-
+}
 </style>
-"""
+""", unsafe_allow_html=True)
 
+
+# ============================================================
+# 3. HTML RENDERING HELPER
+# ============================================================
 
 def render_html(content):
-    """Render HTML safely as HTML rather than a Markdown code block."""
-    st.html(textwrap.dedent(content).strip())
-
-
-st.html(CSS)
-
-
-# ============================================================
-# 3. BRANDING AND HERO SECTION
-# ============================================================
-
-render_html("""
-<div style="display:flex;justify-content:space-between;
-align-items:center;flex-wrap:wrap;padding:8px 0 20px 0;
-border-bottom:1px solid #444444;">
-
-    <div class="brand">
-        CLUSTER<span class="brand-star">✳</span>O
-    </div>
-
-    <div style="background:#202020;border:1px solid #444;
-    padding:12px 18px;border-radius:9px;
-    color:#D5FF36;font-size:11px;letter-spacing:1.5px;
-    font-weight:800;">
-        CUSTOMER INTELLIGENCE STUDIO
-    </div>
-</div>
-
-<div class="hero">
-    <div class="kicker">DISCOVER · GROUP · UNDERSTAND</div>
-
-    <div class="hero-heading">
-        KNOW YOUR<br>
-        CUSTOMERS.<br>
-        <span class="hero-highlight">FIND THE PATTERNS.</span>
-    </div>
-
-    <div style="font-size:20px;font-weight:700;margin-bottom:12px;">
-        Customer Segmentation, powered by K-Means.
-    </div>
-
-    <div class="hero-description">
-        Turn customer data into meaningful insights.
-        Discover purchasing behaviour, identify hidden
-        patterns and understand what makes every
-        customer segment unique.
-    </div>
-</div>
-""")
+    """
+    Render HTML directly.
+    Never send HTML fragments through st.code()
+    or a Markdown code block.
+    """
+    st.html(str(content))
 
 
 # ============================================================
-# 4. SIDEBAR
+# 4. CSV UTILITIES
 # ============================================================
 
-st.sidebar.markdown("## ✳ CLUSTERO")
-st.sidebar.caption("CUSTOMER INTELLIGENCE STUDIO")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 01 / DATASET")
-
-uploaded = st.sidebar.file_uploader(
-    "Upload Customer CSV",
-    type=["csv"]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 02 / TECHNOLOGY")
-
-for technology in [
-    "Python",
-    "Pandas",
-    "Scikit-learn",
-    "Plotly",
-    "Streamlit",
-    "Podman"
-]:
-    st.sidebar.write("✳ " + technology)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 03 / MODEL")
-st.sidebar.write("Algorithm: K-Means")
-st.sidebar.write("Preprocessing: StandardScaler")
-st.sidebar.write("Validation: Elbow Method")
+def normalize_column(column):
+    value = str(column).strip().lower()
+    value = value.replace("_", " ").replace("-", " ")
+    value = re.sub(r"[()]", "", value)
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
 
 
-# ============================================================
-# 5. CSV LOADING AND VALIDATION
-# ============================================================
-
-def read_customer_csv(file):
-    """Try common encodings and automatically detect CSV delimiter."""
-
-    content = file.getvalue()
-
-    encodings = ["utf-8-sig", "utf-8", "cp1252", "latin1"]
-    errors = []
-
-    for encoding in encodings:
-        try:
-            df = pd.read_csv(
-                BytesIO(content),
-                encoding=encoding,
-                sep=None,
-                engine="python",
-                on_bad_lines="error"
-            )
-
-            if len(df.columns) < 2:
-                raise ValueError("The CSV contains fewer than two columns.")
-
-            return df
-
-        except Exception as exc:
-            errors.append(f"{encoding}: {exc}")
-
-    raise ValueError(
-        "Unable to read CSV. Please check its structure and encoding. "
-        + " | ".join(errors)
-    )
-
-
-def locate_column(columns, aliases):
+def locate(columns, possible_names):
     normalized = {
-        str(col).strip().lower().replace("_", " ").replace("-", " "): col
-        for col in columns
+        normalize_column(column): column
+        for column in columns
     }
 
-    for alias in aliases:
-        key = alias.lower().replace("_", " ").replace("-", " ")
+    for name in possible_names:
+        key = normalize_column(name)
         if key in normalized:
             return normalized[key]
 
     return None
 
 
-if uploaded is None:
-    st.info(
-        "Upload your customer CSV using the sidebar to start "
-        "exploring customer segments."
+def is_summary_csv(columns):
+    names = {normalize_column(c) for c in columns}
+
+    summary_signals = {
+        "cluster",
+        "customers",
+        "average age",
+        "average income",
+        "average spending",
+        "share",
+        "segment"
+    }
+
+    return (
+        "cluster" in names
+        and (
+            "customers" in names
+            or "average age" in names
+            or "average income" in names
+        )
     )
 
-    st.markdown("### Your analysis journey")
+
+@st.cache_data(show_spinner=False)
+def load_csv(file_bytes):
+    encodings = [
+        "utf-8-sig",
+        "utf-8",
+        "cp1252",
+        "latin1"
+    ]
+
+    last_error = None
+
+    for encoding in encodings:
+        for separator in [None, ",", ";", "\t"]:
+            try:
+                options = {
+                    "encoding": encoding,
+                    "on_bad_lines": "error"
+                }
+
+                if separator is None:
+                    options["sep"] = None
+                    options["engine"] = "python"
+                else:
+                    options["sep"] = separator
+
+                data = pd.read_csv(
+                    BytesIO(file_bytes),
+                    **options
+                )
+
+                data.columns = [
+                    str(c).strip().replace("\ufeff", "")
+                    for c in data.columns
+                ]
+
+                if data.empty:
+                    continue
+
+                if is_summary_csv(data.columns):
+                    raise ValueError(
+                        "This looks like a cluster summary CSV, "
+                        "not a customer-level dataset. "
+                        "Upload the original customer data CSV."
+                    )
+
+                age = locate(
+                    data.columns,
+                    ["Age", "Customer Age"]
+                )
+
+                income = locate(
+                    data.columns,
+                    [
+                        "Annual Income (k$)",
+                        "Annual Income",
+                        "Annual_Income",
+                        "Income"
+                    ]
+                )
+
+                spending = locate(
+                    data.columns,
+                    [
+                        "Spending Score (1-100)",
+                        "Spending Score",
+                        "Spending_Score",
+                        "Spending"
+                    ]
+                )
+
+                if all([age, income, spending]):
+                    return data
+
+            except ValueError:
+                raise
+
+            except Exception as error:
+                last_error = error
+
+    raise ValueError(
+        "Unable to identify the customer data columns. "
+        "Required: Age, Annual Income and Spending Score. "
+        f"Last parsing error: {last_error}"
+    )
+
+
+# ============================================================
+# 5. PLOTLY CHART STYLING
+# ============================================================
+
+def style_chart(fig, title, height=620):
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=22, color="#191923"),
+            x=0.03
+        ),
+        paper_bgcolor="rgba(255,255,255,0.75)",
+        plot_bgcolor="rgba(255,255,255,0.45)",
+        font=dict(
+            family="Arial",
+            color="#191923",
+            size=13
+        ),
+        height=height,
+        margin=dict(l=65, r=40, t=85, b=70),
+        legend=dict(
+            title="Customer Segments",
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="#191923",
+            borderwidth=1,
+            font=dict(size=13, color="#191923")
+        ),
+        hoverlabel=dict(
+            bgcolor="#191923",
+            bordercolor="#FFD447",
+            font=dict(color="white", size=13)
+        ),
+        hovermode="closest"
+    )
+
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="#E7DFE5",
+        color="#191923",
+        title_font=dict(size=14, color="#191923"),
+        tickfont=dict(size=12, color="#191923")
+    )
+
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="#E7DFE5",
+        color="#191923",
+        title_font=dict(size=14, color="#191923"),
+        tickfont=dict(size=12, color="#191923")
+    )
+
+    return fig
+
+
+def cluster_color_map(cluster_ids):
+    return {
+        str(cluster): PALETTE[int(cluster) % len(PALETTE)]
+        for cluster in sorted(cluster_ids)
+    }
+
+
+def show_chart(fig):
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config=PLOT_CONFIG,
+        theme=None
+    )
+
+
+# ============================================================
+# 6. CHART FUNCTIONS
+# ============================================================
+
+def make_scatter(results, x, y, centers=None, title="Customer Segmentation"):
+    data = results.copy()
+    data["Cluster"] = data["Cluster"].astype(str)
+
+    fig = px.scatter(
+        data,
+        x=x,
+        y=y,
+        color="Cluster",
+        color_discrete_map=cluster_color_map(
+            results["Cluster"].unique()
+        ),
+        hover_data=[
+            "CustomerID",
+            "Age",
+            "Annual Income",
+            "Spending Score",
+            "Cluster"
+        ],
+        opacity=0.88,
+        render_mode="webgl"
+    )
+
+    fig.update_traces(
+        marker=dict(
+            size=13,
+            line=dict(color="#191923", width=0.8)
+        )
+    )
+
+    if centers is not None:
+        indices = {
+            "Age": 0,
+            "Annual Income": 1,
+            "Spending Score": 2
+        }
+
+        fig.add_trace(go.Scatter(
+            x=centers[:, indices[x]],
+            y=centers[:, indices[y]],
+            mode="markers",
+            name="Cluster Centres",
+            marker=dict(
+                symbol="x",
+                size=22,
+                color="#191923",
+                line=dict(color="#FFD447", width=4)
+            )
+        ))
+
+    fig.update_layout(
+        xaxis_title=x,
+        yaxis_title=y,
+        legend_title="Segments",
+        dragmode="pan"
+    )
+
+    return style_chart(fig, title, 680)
+
+
+def make_3d(results):
+    data = results.copy()
+    data["Cluster"] = data["Cluster"].astype(str)
+
+    fig = px.scatter_3d(
+        data,
+        x="Age",
+        y="Annual Income",
+        z="Spending Score",
+        color="Cluster",
+        color_discrete_map=cluster_color_map(
+            results["Cluster"].unique()
+        ),
+        hover_data=["CustomerID"],
+        opacity=0.9
+    )
+
+    fig.update_traces(
+        marker=dict(
+            size=6,
+            line=dict(color="#191923", width=0.5)
+        )
+    )
+
+    fig.update_layout(
+        paper_bgcolor="rgba(255,255,255,.8)",
+        font=dict(color="#191923", size=13),
+        height=760,
+        margin=dict(l=15, r=15, t=75, b=15),
+        scene=dict(
+            bgcolor="rgba(255,255,255,.4)",
+            xaxis=dict(title="Age", color="#191923"),
+            yaxis=dict(title="Annual Income", color="#191923"),
+            zaxis=dict(title="Spending Score", color="#191923")
+        )
+    )
+
+    return fig
+
+
+def make_bubble(results):
+    fig = px.scatter(
+        results,
+        x="Annual Income",
+        y="Spending Score",
+        size="Age",
+        color=results["Cluster"].astype(str),
+        color_discrete_map=cluster_color_map(
+            results["Cluster"].unique()
+        ),
+        hover_data=["CustomerID", "Age"],
+        size_max=32,
+        opacity=0.85
+    )
+
+    return style_chart(
+        fig,
+        "Bubble Chart — Income, Spending and Age",
+        680
+    )
+
+
+def make_density(results):
+    fig = px.density_heatmap(
+        results,
+        x="Annual Income",
+        y="Spending Score",
+        nbinsx=25,
+        nbinsy=25,
+        color_continuous_scale=[
+            "#FFF9F1",
+            "#BDA9FF",
+            "#FF78B9",
+            "#FFD447"
+        ],
+        hover_data=["count"]
+    )
+
+    return style_chart(
+        fig,
+        "Customer Density — Income vs Spending",
+        680
+    )
+
+
+def make_box(results):
+    fig = px.box(
+        results,
+        x=results["Cluster"].astype(str),
+        y="Spending Score",
+        color=results["Cluster"].astype(str),
+        color_discrete_map=cluster_color_map(
+            results["Cluster"].unique()
+        ),
+        points="all",
+        hover_data=["CustomerID", "Age", "Annual Income"]
+    )
+
+    fig.update_layout(
+        xaxis_title="Customer Segment",
+        yaxis_title="Spending Score"
+    )
+
+    return style_chart(
+        fig,
+        "Spending Score Distribution by Segment",
+        680
+    )
+
+
+def make_elbow(ks, inertias, selected_k):
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=ks,
+        y=inertias,
+        mode="lines+markers",
+        name="Inertia",
+        line=dict(color="#7954E8", width=4),
+        marker=dict(
+            size=13,
+            color=PALETTE[:len(ks)],
+            line=dict(color="#191923", width=1)
+        ),
+        hovertemplate="K: %{x}<br>Inertia: %{y:.3f}<extra></extra>"
+    ))
+
+    selected_value = inertias[ks.index(selected_k)]
+
+    fig.add_trace(go.Scatter(
+        x=[selected_k],
+        y=[selected_value],
+        mode="markers",
+        name="Selected K",
+        marker=dict(
+            size=23,
+            color="#FF6FAE",
+            symbol="star",
+            line=dict(color="#191923", width=2)
+        )
+    ))
+
+    fig.add_vline(
+        x=selected_k,
+        line_dash="dash",
+        line_color="#191923"
+    )
+
+    fig.update_layout(
+        xaxis_title="Number of Clusters (K)",
+        yaxis_title="Inertia / WCSS"
+    )
+
+    return style_chart(
+        fig,
+        "Elbow Method — Optimal Cluster Selection",
+        570
+    )
+
+
+def make_distribution(results):
+    counts = results["Cluster"].value_counts().sort_index()
+
+    fig = go.Figure(go.Bar(
+        x=[f"Cluster {i}" for i in counts.index],
+        y=counts.values,
+        marker=dict(
+            color=[
+                PALETTE[int(i) % len(PALETTE)]
+                for i in counts.index
+            ],
+            line=dict(color="#191923", width=2)
+        ),
+        text=counts.values,
+        textposition="outside",
+        textfont=dict(color="#191923", size=15),
+        customdata=counts.values / len(results) * 100,
+        hovertemplate=(
+            "%{x}<br>Customers: %{y}"
+            "<br>Share: %{customdata:.1f}%<extra></extra>"
+        )
+    ))
+
+    fig.update_layout(
+        xaxis_title="Customer Segments",
+        yaxis_title="Number of Customers"
+    )
+
+    return style_chart(
+        fig,
+        "Customer Distribution by Segment",
+        510
+    )
+
+
+def make_donut(results):
+    counts = results["Cluster"].value_counts().sort_index()
+
+    fig = go.Figure(go.Pie(
+        labels=[f"Cluster {i}" for i in counts.index],
+        values=counts.values,
+        hole=0.62,
+        marker=dict(
+            colors=[
+                PALETTE[int(i) % len(PALETTE)]
+                for i in counts.index
+            ],
+            line=dict(color="#191923", width=2)
+        ),
+        textinfo="label+percent",
+        textfont=dict(color="#191923", size=13),
+        hovertemplate="%{label}<br>%{value} customers<extra></extra>"
+    ))
+
+    return style_chart(
+        fig,
+        "Customer Segment Share",
+        510
+    )
+
+
+def make_spending_chart(summary):
+    fig = go.Figure(go.Bar(
+        x=[f"Cluster {i}" for i in summary.index],
+        y=summary["Average_Spending"],
+        marker=dict(
+            color=[
+                PALETTE[int(i) % len(PALETTE)]
+                for i in summary.index
+            ],
+            line=dict(color="#191923", width=2)
+        ),
+        text=summary["Average_Spending"].round(1),
+        textposition="outside",
+        textfont=dict(color="#191923", size=14),
+        hovertemplate="%{x}<br>Average score: %{y:.2f}<extra></extra>"
+    ))
+
+    fig.update_layout(
+        xaxis_title="Customer Segment",
+        yaxis_title="Average Spending Score"
+    )
+
+    return style_chart(
+        fig,
+        "Average Spending Score by Segment",
+        510
+    )
+
+
+# ============================================================
+# 7. BRAND HEADER AND HERO
+# ============================================================
+
+render_html("""
+<div class="topbar">
+    <div>
+        <div class="brand">CLUSTER<span class="brand-star">✳</span>O</div>
+        <div class="brand-tag">CUSTOMER INTELLIGENCE STUDIO</div>
+    </div>
+    <div class="topbar-tag">LIVE CUSTOMER ANALYTICS · K-MEANS</div>
+</div>
+""")
+
+render_html("""
+<div class="hero">
+    <div>
+        <div class="hero-kicker">✳ CUSTOMER INTELLIGENCE / DATA DISCOVERY</div>
+        <div class="hero-title">
+            KNOW YOUR<br>
+            CUSTOMERS.<br>
+            <span class="hero-highlight">FIND THE PATTERNS.</span>
+        </div>
+        <div class="hero-subtitle">
+            Customer Segmentation, powered by K-Means.
+        </div>
+        <div class="hero-description">
+            Turn customer data into meaningful insights.
+            Discover purchasing behaviour, identify hidden
+            patterns and understand what makes every
+            customer segment unique.
+        </div>
+    </div>
+    <div class="hero-art">
+        <div class="hero-star star-one">✳</div>
+        <div class="hero-coin">C</div>
+        <div class="hero-star star-two">✳</div>
+    </div>
+</div>
+""")
+
+
+# ============================================================
+# 8. SIDEBAR
+# ============================================================
+
+with st.sidebar:
+    render_html("""
+    <div style="font-size:28px;font-weight:900;letter-spacing:-1px;">
+        CLUSTERO ✳
+    </div>
+    <div style="font-family:monospace;font-size:10px;
+                font-weight:700;letter-spacing:2px;">
+        CUSTOMER INTELLIGENCE
+    </div>
+    """)
+
+    st.markdown("---")
+    st.markdown("### 01 / DATASET")
+
+    uploaded = st.file_uploader(
+        "Upload customer CSV",
+        type=["csv"],
+        help="Required: Age, Annual Income and Spending Score."
+    )
+
+    st.markdown("---")
+    st.markdown("### 02 / TECHNOLOGY")
+    st.markdown("""
+    - Python
+    - Pandas
+    - Scikit-learn
+    - Plotly
+    - Streamlit
+    - Podman
+    """)
+
+    st.markdown("---")
+    st.markdown("### 03 / MODEL")
+    st.caption("Algorithm: K-Means")
+    st.caption("Scaling: StandardScaler")
+    st.caption("Validation: Elbow Method")
+
+    st.markdown("---")
+    st.caption("TURN DATA INTO DISCOVERY ✳")
+
+
+# ============================================================
+# 9. LANDING PAGE
+# ============================================================
+
+if uploaded is None:
+    render_html("""
+    <div class="section-kicker">GET STARTED / 01</div>
+    <div class="section-heading">Your data has a story. Let's find it.</div>
+    """)
 
     c1, c2, c3 = st.columns(3)
 
-    c1.info("01 · Upload your customer dataset")
-    c2.info("02 · Discover patterns using K-Means")
-    c3.info("03 · Predict new customer segments")
+    cards = [
+        (c1, "#FFB4D2", "STEP 01", "Upload Data",
+         "Upload your customer-level CSV dataset.", "▤"),
+        (c2, "#BDA9FF", "STEP 02", "Discover Groups",
+         "Apply K-Means and uncover customer patterns.", "◉"),
+        (c3, "#9BE8D3", "STEP 03", "Predict Segments",
+         "Assign new customers to their predicted segments.", "✳")
+    ]
 
+    for col, color, step, title, description, symbol in cards:
+        with col:
+            render_html(f"""
+            <div class="panel" style="background:{color};min-height:220px;">
+                <div style="font-family:monospace;font-weight:900;">{step}</div>
+                <div style="font-size:24px;font-weight:900;margin-top:15px;">
+                    {title}
+                </div>
+                <div style="font-size:14px;font-weight:600;margin-top:10px;">
+                    {description}
+                </div>
+                <div style="font-size:48px;font-weight:900;margin-top:15px;">
+                    {symbol}
+                </div>
+            </div>
+            """)
+
+    render_html("""
+    <div class="footer">
+        CLUSTERO ✳<br>
+        CUSTOMER SEGMENTATION · POWERED BY K-MEANS<br>
+        UPLOAD YOUR DATASET TO BEGIN
+    </div>
+    """)
     st.stop()
 
+
+# ============================================================
+# 10. LOAD AND VALIDATE CUSTOMER DATA
+# ============================================================
 
 try:
-    raw = read_customer_csv(uploaded)
-except Exception as exc:
-    st.error(f"CSV loading error: {exc}")
+    raw = load_csv(uploaded.getvalue())
+
+except Exception as error:
+    st.error(f"Unable to process your CSV: {error}")
+    st.info(
+        "Your customer-level CSV must contain Age, "
+        "Annual Income and Spending Score columns."
+    )
     st.stop()
 
 
-age_col = locate_column(
-    raw.columns,
-    ["Age"]
-)
+age_col = locate(raw.columns, ["Age", "Customer Age"])
 
-income_col = locate_column(
+income_col = locate(
     raw.columns,
     [
         "Annual Income (k$)",
@@ -502,7 +1312,7 @@ income_col = locate_column(
     ]
 )
 
-score_col = locate_column(
+score_col = locate(
     raw.columns,
     [
         "Spending Score (1-100)",
@@ -512,133 +1322,113 @@ score_col = locate_column(
     ]
 )
 
-missing = [
-    name
-    for name, column in [
-        ("Age", age_col),
-        ("Annual Income", income_col),
-        ("Spending Score", score_col)
-    ]
-    if column is None
-]
+id_col = locate(
+    raw.columns,
+    ["CustomerID", "Customer ID", "ID"]
+)
 
-if missing:
-    st.error(
-        f"Missing columns: {', '.join(missing)}. "
-        f"Detected columns: {list(raw.columns)}"
-    )
+if not all([age_col, income_col, score_col]):
+    st.error("Required customer columns are missing.")
+    st.write("Detected columns:", list(raw.columns))
     st.stop()
 
 
+# ============================================================
+# 11. PREPROCESSING
+# ============================================================
+
 df = raw[[age_col, income_col, score_col]].copy()
 
-df.columns = [
-    "Age",
-    "Annual Income",
-    "Spending Score"
-]
+df.columns = FEATURES
 
-for col in df.columns:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+for column in FEATURES:
+    df[column] = pd.to_numeric(df[column], errors="coerce")
 
-df = df.replace([np.inf, -np.inf], np.nan).dropna()
+valid_mask = (
+    df[FEATURES].notna().all(axis=1)
+    & (df["Age"] > 0)
+    & (df["Age"] <= 100)
+    & (df["Annual Income"] >= 0)
+    & (df["Spending Score"].between(1, 100))
+)
+
+df = df.loc[valid_mask].copy()
 
 if len(df) < 3:
     st.error("At least three valid customer records are required.")
     st.stop()
 
-if (df["Age"] <= 0).any() or (df["Annual Income"] < 0).any():
-    st.error("Please check that age and income values are valid.")
+if any(df[column].nunique() < 2 for column in FEATURES):
+    st.error("Each feature must have at least two distinct values.")
     st.stop()
 
-if not df["Spending Score"].between(1, 100).all():
-    st.error("Spending Score must be between 1 and 100.")
-    st.stop()
-
-if df.nunique().min() < 2:
-    st.error("Each feature must contain at least two distinct values.")
-    st.stop()
-
-
-# Save uploaded dataset to mounted storage.
+if id_col:
+    customer_ids = raw.loc[df.index, id_col].to_numpy()
+else:
+    customer_ids = df.index.to_numpy() + 1
 
 try:
     safe_name = Path(uploaded.name).name
     (DATA_DIR / safe_name).write_bytes(uploaded.getvalue())
-except OSError as exc:
-    st.warning(f"Could not save uploaded dataset: {exc}")
+except OSError:
+    pass
 
 
 # ============================================================
-# 6. MODEL CONFIGURATION
+# 12. MODEL SETTINGS
 # ============================================================
 
-st.markdown('<div class="section-label">MODEL CONFIGURATION / 02</div>',
-            unsafe_allow_html=True)
+max_k = min(10, len(df) - 1)
 
-st.header("Configure your clustering model.")
+render_html("""
+<div class="section-kicker">MODEL CONFIGURATION / 02</div>
+<div class="section-heading">Configure your clustering model.</div>
+""")
 
-left, right = st.columns([1, 1.3])
+left, right = st.columns([1, 2])
 
 with left:
-    max_k = min(10, len(df) - 1)
-
     k = st.slider(
         "Number of Clusters (K)",
         min_value=2,
         max_value=max_k,
-        value=min(5, max_k)
+        value=min(5, max_k),
+        key="cluster_k"
     )
 
 with right:
     render_html("""
-    <div style="background:#202020;border:1px solid #444;
-    border-radius:12px;padding:20px;margin-top:5px;">
-        <div style="color:#D5FF36;font-weight:800;">
-            K-MEANS CLUSTERING
+    <div class="panel">
+        <div class="panel-title">K-Means Clustering</div>
+        <div class="panel-caption">
+            Customers are grouped based on similarities in age,
+            annual income and spending score. StandardScaler
+            standardises the features before model training.
         </div>
-        <p style="color:#DDDDDD;font-size:13px;line-height:1.8;">
-            Group customers based on similarities in age,
-            annual income and spending score. All three
-            features are standardised before clustering.
-        </p>
     </div>
     """)
 
 
 # ============================================================
-# 7. STANDARDISATION AND K-MEANS
+# 13. K-MEANS MODEL
 # ============================================================
 
-features = df[
-    ["Age", "Annual Income", "Spending Score"]
-]
+features = df[FEATURES].copy()
 
 scaler = StandardScaler()
-scaled = scaler.fit_transform(features)
-
-inertia = []
-silhouette_values = []
+scaled_data = scaler.fit_transform(features)
 
 ks = list(range(1, max_k + 1))
+inertias = []
 
-for n in ks:
-    temporary_model = KMeans(
-        n_clusters=n,
+for number in ks:
+    km = KMeans(
+        n_clusters=number,
         random_state=42,
         n_init=10
     )
-
-    temporary_labels = temporary_model.fit_predict(scaled)
-    inertia.append(temporary_model.inertia_)
-
-    if n >= 2 and len(np.unique(temporary_labels)) > 1:
-        silhouette_values.append(
-            silhouette_score(scaled, temporary_labels)
-        )
-    else:
-        silhouette_values.append(None)
-
+    km.fit(scaled_data)
+    inertias.append(km.inertia_)
 
 model = KMeans(
     n_clusters=k,
@@ -646,604 +1436,354 @@ model = KMeans(
     n_init=10
 )
 
-labels = model.fit_predict(scaled)
+labels = model.fit_predict(scaled_data)
 
 results = df.copy()
+
+results.insert(0, "CustomerID", customer_ids)
 results["Cluster"] = labels
 
-cluster_summary = results.groupby("Cluster").agg(
+centers = scaler.inverse_transform(model.cluster_centers_)
+
+
+# ============================================================
+# 14. CLUSTER SUMMARY
+# ============================================================
+
+summary = results.groupby("Cluster").agg(
     Customers=("Cluster", "size"),
     Average_Age=("Age", "mean"),
     Average_Income=("Annual Income", "mean"),
     Average_Spending=("Spending Score", "mean")
 ).round(2)
 
-cluster_summary["Share"] = (
-    cluster_summary["Customers"] / len(results) * 100
-).round(2)
+income_median = results["Annual Income"].median()
+spending_median = results["Spending Score"].median()
+
+
+def describe_cluster(row):
+    income = row["Average_Income"]
+    spending = row["Average_Spending"]
+
+    if income >= income_median and spending >= spending_median:
+        return "High Income · High Spending"
+    if income >= income_median and spending < spending_median:
+        return "High Income · Lower Spending"
+    if income < income_median and spending >= spending_median:
+        return "Lower Income · High Spending"
+    return "Lower Income · Lower Spending"
 
 
 # ============================================================
-# 8. CLUSTER NAMING
+# 15. KPI DASHBOARD
 # ============================================================
 
-overall_income = df["Annual Income"].mean()
-overall_spending = df["Spending Score"].mean()
-
-
-def get_segment_name(row):
-    high_income = row["Average_Income"] >= overall_income
-    high_spending = row["Average_Spending"] >= overall_spending
-
-    if high_income and high_spending:
-        return "Premium Customers"
-
-    if high_income and not high_spending:
-        return "Careful Affluents"
-
-    if not high_income and high_spending:
-        return "Enthusiastic Spenders"
-
-    return "Budget Conscious"
-
-
-cluster_summary["Segment"] = cluster_summary.apply(
-    get_segment_name,
-    axis=1
-)
-
-
-# ============================================================
-# 9. LIVE ANALYTICS
-# ============================================================
-
-st.markdown("---")
-
-st.markdown(
-    '<div class="section-label">LIVE ANALYTICS / 03</div>',
-    unsafe_allow_html=True
-)
-
-st.header("The numbers behind the story.")
+render_html("""
+<div class="section-kicker">LIVE ANALYTICS / 03</div>
+<div class="section-heading">The numbers behind the story.</div>
+""")
 
 m1, m2, m3, m4 = st.columns(4)
 
-m1.metric(
-    "CUSTOMERS",
-    f"{len(results):,}"
-)
+metrics = [
+    (m1, "CUSTOMERS", f"{len(df):,}", "pink"),
+    (m2, "SEGMENTS", str(k), "yellow"),
+    (m3, "FEATURES", "03", "purple"),
+    (m4, "ALGORITHM", "K-MEANS", "mint")
+]
 
-m2.metric(
-    "SEGMENTS",
-    k
-)
-
-m3.metric(
-    "FEATURES",
-    "03"
-)
-
-m4.metric(
-    "ALGORITHM",
-    "K-MEANS"
-)
-
-st.caption(
-    f"Dataset: {html.escape(uploaded.name)} · "
-    f"{len(results):,} valid customer records"
-)
+for col, label, value, color in metrics:
+    with col:
+        render_html(f"""
+        <div class="metric-card {color}">
+            <div class="metric-label">{label}</div>
+            <div class="metric-number">{value}</div>
+        </div>
+        """)
 
 
 # ============================================================
-# 10. NAVIGATION TABS
+# 16. NAVIGATION
 # ============================================================
 
-overview_tab, data_tab, analytics_tab, prediction_tab, export_tab = st.tabs(
-    [
-        "✳ Overview",
-        "▤ Data Explorer",
-        "◉ Analytics",
-        "✦ Prediction",
-        "↓ Export"
+tab_overview, tab_data, tab_analytics, tab_prediction, tab_export = st.tabs([
+    "✳ Overview",
+    "▤ Data Explorer",
+    "◉ Analytics",
+    "✦ Prediction",
+    "↓ Export Centre"
+])
+
+
+# ============================================================
+# 17. OVERVIEW
+# ============================================================
+
+with tab_overview:
+    render_html("""
+    <div class="section-kicker">CUSTOMER INSIGHTS</div>
+    <div class="section-heading">Meet your customer segments.</div>
+    """)
+
+    left, right = st.columns(2)
+
+    with left:
+        render_html("""
+        <div class="panel">
+            <div class="panel-title">Customer Distribution</div>
+            <div class="panel-caption">
+                Number of customers in each discovered segment.
+            </div>
+        </div>
+        """)
+        show_chart(make_distribution(results))
+
+    with right:
+        render_html("""
+        <div class="panel">
+            <div class="panel-title">Segment Share</div>
+            <div class="panel-caption">
+                Percentage contribution of every segment.
+            </div>
+        </div>
+        """)
+        show_chart(make_donut(results))
+
+    render_html("""
+    <div class="section-kicker">SEGMENT PROFILES</div>
+    <div class="section-heading">Understand your customers.</div>
+    """)
+
+    for cluster_id, row in summary.iterrows():
+        color = PALETTE[int(cluster_id) % len(PALETTE)]
+
+        render_html(f"""
+        <div class="segment-card">
+            <div class="segment-number">CUSTOMER SEGMENT {cluster_id}</div>
+            <div class="segment-title">{describe_cluster(row)}</div>
+            <div class="segment-detail">
+                Customers: {int(row['Customers'])}<br>
+                Average age: {row['Average_Age']:.1f}<br>
+                Average income: {row['Average_Income']:.1f}k<br>
+                Average spending: {row['Average_Spending']:.1f}
+            </div>
+            <div style="height:7px;background:{color};
+                        border:1px solid #191923;border-radius:5px;
+                        margin-top:14px;"></div>
+        </div>
+        """)
+
+    biggest = summary["Customers"].idxmax()
+    top_spender = summary["Average_Spending"].idxmax()
+    top_income = summary["Average_Income"].idxmax()
+
+    a, b, c = st.columns(3)
+
+    insights = [
+        (a, "LARGEST SEGMENT",
+         str(int(summary.loc[biggest, "Customers"])),
+         f"Customers · Cluster {biggest}", "pink"),
+        (b, "HIGHEST SPENDING",
+         f"{summary.loc[top_spender, 'Average_Spending']:.1f}",
+         f"Average score · Cluster {top_spender}", "mint"),
+        (c, "HIGHEST INCOME",
+         f"{summary.loc[top_income, 'Average_Income']:.1f}",
+         f"Average income · Cluster {top_income}", "purple")
     ]
-)
 
-
-# ============================================================
-# 11. OVERVIEW TAB
-# ============================================================
-
-with overview_tab:
-
-    st.markdown(
-        '<div class="section-label">CUSTOMER INTELLIGENCE</div>',
-        unsafe_allow_html=True
-    )
-
-    st.header("Meet your customer segments.")
-
-    chart_left, chart_right = st.columns(2)
-
-    with chart_left:
-
-        distribution = (
-            results["Cluster"]
-            .value_counts()
-            .sort_index()
-            .reset_index()
-        )
-
-        distribution.columns = ["Cluster", "Customers"]
-
-        distribution["Cluster"] = (
-            "Cluster " + distribution["Cluster"].astype(str)
-        )
-
-        fig = px.bar(
-            distribution,
-            x="Cluster",
-            y="Customers",
-            color="Cluster",
-            color_discrete_sequence=COLORS,
-            text="Customers",
-            title="Customer Distribution"
-        )
-
-        fig.update_traces(
-            textposition="outside",
-            marker_line_width=0
-        )
-
-        fig.update_layout(
-            template="plotly_dark",
-            paper_bgcolor=CARD,
-            plot_bgcolor=CARD,
-            font_color=TEXT,
-            showlegend=False,
-            margin=dict(l=15, r=15, t=55, b=15),
-            xaxis_title="Customer Segment",
-            yaxis_title="Number of Customers"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            key="overview_distribution"
-        )
-
-    with chart_right:
-
-        fig = px.pie(
-            cluster_summary.reset_index(),
-            names="Cluster",
-            values="Customers",
-            hole=0.62,
-            color="Cluster",
-            color_discrete_sequence=COLORS,
-            title="Customer Segment Share"
-        )
-
-        fig.update_traces(
-            textposition="inside",
-            textinfo="percent+label",
-            hovertemplate=(
-                "Cluster %{label}<br>"
-                "Customers: %{value}<br>"
-                "Share: %{percent}<extra></extra>"
-            )
-        )
-
-        fig.update_layout(
-            template="plotly_dark",
-            paper_bgcolor=CARD,
-            font_color=TEXT,
-            margin=dict(l=15, r=15, t=55, b=15)
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            key="overview_share"
-        )
-
-    st.markdown(
-        '<div class="section-label">SEGMENT PROFILES</div>',
-        unsafe_allow_html=True
-    )
-
-    st.header("Understand your customers.")
-
-    card_columns = st.columns(2)
-
-    for index, (cluster_id, row) in enumerate(
-        cluster_summary.iterrows()
-    ):
-
-        color = COLORS[index % len(COLORS)]
-
-        with card_columns[index % 2]:
-
-            safe_segment = html.escape(str(row["Segment"]))
-
+    for col, label, value, note, color in insights:
+        with col:
             render_html(f"""
-            <div class="segment-card">
-
-                <div class="segment-number">
-                    CUSTOMER SEGMENT {int(cluster_id)}
-                </div>
-
-                <div class="segment-title">
-                    {safe_segment}
-                </div>
-
-                <div class="segment-detail">
-                    Customers: {int(row['Customers']):,}
-                    <br>
-                    Share: {row['Share']:.1f}%
-                    <br>
-                    Average age: {row['Average_Age']:.1f}
-                    <br>
-                    Average income: {row['Average_Income']:.1f}k
-                    <br>
-                    Average spending: {row['Average_Spending']:.1f}
-                </div>
-
-                <div style="height:6px;background:#414141;
-                border-radius:6px;margin-top:15px;">
-
-                    <div class="segment-bar"
-                    style="background:{color};
-                    width:{row['Share']}%;margin-top:0;">
-                    </div>
-
-                </div>
-
+            <div class="metric-card {color}">
+                <div class="metric-label">{label}</div>
+                <div class="metric-number">{value}</div>
+                <div class="metric-note">{note}</div>
             </div>
             """)
 
-    st.markdown(
-        '<div class="section-label">QUICK INSIGHTS</div>',
-        unsafe_allow_html=True
+
+# ============================================================
+# 18. DATA EXPLORER
+# ============================================================
+
+with tab_data:
+    render_html("""
+    <div class="section-kicker">DATA MANAGEMENT / 04</div>
+    <div class="section-heading">Explore your customer dataset.</div>
+    """)
+
+    st.write("### Original uploaded dataset")
+
+    st.dataframe(
+        raw,
+        use_container_width=True,
+        height=420,
+        hide_index=True
     )
 
-    st.header("What stands out?")
-
-    largest = cluster_summary["Customers"].idxmax()
-    highest_spending = cluster_summary["Average_Spending"].idxmax()
-    highest_income = cluster_summary["Average_Income"].idxmax()
-
-    i1, i2, i3 = st.columns(3)
-
-    with i1:
-        render_html(f"""
-        <div class="insight-card" style="background:#D5FF36;">
-            <div class="insight-label">LARGEST SEGMENT</div>
-            <div class="insight-value">Cluster {largest}</div>
-            <div>{int(cluster_summary.loc[largest, 'Customers'])} customers</div>
-        </div>
-        """)
-
-    with i2:
-        render_html(f"""
-        <div class="insight-card" style="background:#F477CE;">
-            <div class="insight-label">HIGHEST SPENDING</div>
-            <div class="insight-value">Cluster {highest_spending}</div>
-            <div>Score {cluster_summary.loc[highest_spending, 'Average_Spending']:.1f}</div>
-        </div>
-        """)
-
-    with i3:
-        render_html(f"""
-        <div class="insight-card" style="background:#A99AFF;">
-            <div class="insight-label">HIGHEST INCOME</div>
-            <div class="insight-value">Cluster {highest_income}</div>
-            <div>Average {cluster_summary.loc[highest_income, 'Average_Income']:.1f}k</div>
-        </div>
-        """)
-
-
-# ============================================================
-# 12. DATA EXPLORER TAB
-# ============================================================
-
-with data_tab:
-
-    st.header("Explore your customer dataset.")
-
-    st.caption("Inspect the uploaded records used by the model.")
-
-    d1, d2, d3 = st.columns(3)
-
-    d1.metric("Original rows", len(raw))
-    d2.metric("Valid rows", len(df))
-    d3.metric("Removed rows", len(raw) - len(df))
+    st.write("### Processed customer records")
 
     st.dataframe(
         results,
         use_container_width=True,
-        height=400
+        height=420,
+        hide_index=True
     )
 
-    st.subheader("Feature statistics")
+    st.write("### Statistical summary")
 
     st.dataframe(
         df.describe().round(2),
         use_container_width=True
     )
 
-    st.subheader("Feature relationships")
+    a, b, c = st.columns(3)
 
-    selected_x = st.selectbox(
-        "Horizontal axis",
-        features.columns.tolist(),
-        index=1
-    )
-
-    selected_y = st.selectbox(
-        "Vertical axis",
-        features.columns.tolist(),
-        index=2
-    )
-
-    fig = px.scatter(
-        results,
-        x=selected_x,
-        y=selected_y,
-        color=results["Cluster"].astype(str),
-        color_discrete_sequence=COLORS,
-        hover_data=["Age", "Annual Income", "Spending Score"],
-        title=f"{selected_x} vs {selected_y}"
-    )
-
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        plot_bgcolor=CARD,
-        font_color=TEXT
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        key="data_relationships"
-    )
+    a.metric("Original Records", len(raw))
+    b.metric("Valid Records", len(df))
+    c.metric("Removed Records", len(raw) - len(df))
 
 
 # ============================================================
-# 13. ANALYTICS TAB
+# 19. ANALYTICS
 # ============================================================
 
-with analytics_tab:
-
-    st.header("Discover the patterns.")
+with tab_analytics:
+    render_html("""
+    <div class="section-kicker">MACHINE LEARNING / 05</div>
+    <div class="section-heading">Explore customer behaviour.</div>
+    """)
 
     st.caption(
-        "Use the interactive charts to explore customer behaviour."
+        "Interactive charts support hover, zoom, pan, selection "
+        "and image export."
     )
 
-    # Elbow graph
+    st.write("### 01 / Elbow Method")
 
-    st.subheader("01 / Elbow Method")
-
-    elbow_fig = go.Figure()
-
-    elbow_fig.add_trace(
-        go.Scatter(
-            x=ks,
-            y=inertia,
-            mode="lines+markers+text",
-            text=[round(v, 1) for v in inertia],
-            textposition="top center",
-            line=dict(color="#D5FF36", width=3),
-            marker=dict(size=10),
-            name="WCSS"
-        )
-    )
-
-    elbow_fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        plot_bgcolor=CARD,
-        font_color=TEXT,
-        xaxis_title="Number of Clusters (K)",
-        yaxis_title="Inertia (WCSS)",
-        title="Finding the optimal K",
-        hovermode="x unified"
-    )
-
-    st.plotly_chart(
-        elbow_fig,
-        use_container_width=True,
-        key="elbow_chart"
-    )
+    show_chart(make_elbow(ks, inertias, k))
 
     st.info(
-        "Look for the elbow point where the reduction in WCSS "
-        "starts slowing down. This helps guide the choice of K; "
-        "it is not an automatic guarantee of the best clustering."
+        f"The current model uses K = {k}. "
+        "Compare the inertia values to identify the elbow point."
     )
 
-    # Main clustering scatter
+    st.divider()
 
-    st.subheader("02 / Customer Segmentation")
+    st.write("### 02 / Choose Your Visualisation")
 
-    fig = px.scatter(
-        results,
-        x="Annual Income",
-        y="Spending Score",
-        color=results["Cluster"].astype(str),
-        color_discrete_sequence=COLORS,
-        hover_data=["Age", "Annual Income", "Spending Score"],
-        title="Annual Income vs Spending Score",
-        opacity=0.85
-    )
-
-    fig.update_traces(
-        marker=dict(size=10, line=dict(width=0.5, color="#FFFFFF"))
-    )
-
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        plot_bgcolor=CARD,
-        font_color=TEXT,
-        xaxis_title="Annual Income (k$)",
-        yaxis_title="Spending Score (1-100)",
-        legend_title="Customer Cluster"
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        key="cluster_scatter"
-    )
-
-    # 3D clustering chart
-
-    st.subheader("03 / Three-Dimensional Customer View")
-
-    fig_3d = px.scatter_3d(
-        results,
-        x="Age",
-        y="Annual Income",
-        z="Spending Score",
-        color=results["Cluster"].astype(str),
-        color_discrete_sequence=COLORS,
-        hover_data=["Age", "Annual Income", "Spending Score"],
-        title="Customer Segments in 3D"
-    )
-
-    fig_3d.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        font_color=TEXT,
-        scene=dict(
-            xaxis_title="Age",
-            yaxis_title="Annual Income",
-            zaxis_title="Spending Score",
-            bgcolor=CARD
-        )
-    )
-
-    st.plotly_chart(
-        fig_3d,
-        use_container_width=True,
-        key="cluster_3d"
-    )
-
-    # Cluster feature comparison
-
-    st.subheader("04 / Cluster Behaviour Comparison")
-
-    comparison = cluster_summary.reset_index().melt(
-        id_vars=["Cluster"],
-        value_vars=[
-            "Average_Age",
-            "Average_Income",
-            "Average_Spending"
+    visualisation = st.radio(
+        "Select your graph",
+        [
+            "2D Scatter",
+            "3D Scatter",
+            "Bubble Chart",
+            "Density Plot",
+            "Box Plot"
         ],
-        var_name="Feature",
-        value_name="Average Value"
+        horizontal=True,
+        key="visualisation_choice"
     )
 
-    fig = px.bar(
-        comparison,
-        x="Cluster",
-        y="Average Value",
-        color="Feature",
-        barmode="group",
-        color_discrete_sequence=COLORS,
-        title="Average Customer Characteristics"
+    st.write("### 03 / Feature Selection")
+
+    x_col, y_col = st.columns(2)
+
+    with x_col:
+        x_axis = st.selectbox(
+            "Horizontal axis",
+            FEATURES,
+            index=1,
+            key="chart_x"
+        )
+
+    with y_col:
+        y_axis = st.selectbox(
+            "Vertical axis",
+            FEATURES,
+            index=2,
+            key="chart_y"
+        )
+
+    if visualisation == "2D Scatter":
+        if x_axis == y_axis:
+            st.warning("Select two different features.")
+        else:
+            show_chart(
+                make_scatter(
+                    results,
+                    x_axis,
+                    y_axis,
+                    centers,
+                    f"{x_axis} vs {y_axis} — Customer Segmentation"
+                )
+            )
+
+    elif visualisation == "3D Scatter":
+        show_chart(make_3d(results))
+
+    elif visualisation == "Bubble Chart":
+        show_chart(make_bubble(results))
+
+    elif visualisation == "Density Plot":
+        show_chart(make_density(results))
+
+    elif visualisation == "Box Plot":
+        show_chart(make_box(results))
+
+    st.divider()
+
+    st.write("### 04 / Primary Customer Segmentation Map")
+
+    st.caption(
+        "Annual Income vs Spending Score. "
+        "Each colour represents a K-Means cluster."
     )
 
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        plot_bgcolor=CARD,
-        font_color=TEXT
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        key="cluster_comparison"
-    )
-
-    # Silhouette scores
-
-    st.subheader("05 / Clustering Quality")
-
-    valid_silhouette = [
-        (cluster_count, value)
-        for cluster_count, value in zip(ks, silhouette_values)
-        if value is not None
-    ]
-
-    silhouette_fig = go.Figure()
-
-    silhouette_fig.add_trace(
-        go.Scatter(
-            x=[x[0] for x in valid_silhouette],
-            y=[x[1] for x in valid_silhouette],
-            mode="lines+markers",
-            line=dict(color="#F477CE", width=3),
-            marker=dict(size=9)
+    show_chart(
+        make_scatter(
+            results,
+            "Annual Income",
+            "Spending Score",
+            centers,
+            "Annual Income vs Spending Score — Customer Segments"
         )
     )
 
-    silhouette_fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor=CARD,
-        plot_bgcolor=CARD,
-        font_color=TEXT,
-        title="Silhouette Score by K",
-        xaxis_title="Number of Clusters",
-        yaxis_title="Silhouette Score"
-    )
+    st.divider()
 
-    st.plotly_chart(
-        silhouette_fig,
-        use_container_width=True,
-        key="silhouette_chart"
-    )
+    st.write("### 05 / Spending Comparison")
 
-    current_silhouette = silhouette_score(scaled, labels)
+    show_chart(make_spending_chart(summary))
 
-    st.metric(
-        "Current model silhouette score",
-        f"{current_silhouette:.3f}"
-    )
+    st.write("### 06 / Segment Statistics")
 
-    st.caption(
-        "A silhouette score closer to 1 generally indicates "
-        "better-separated clusters. Interpret it alongside "
-        "the elbow curve and cluster profiles."
-    )
-
-    st.subheader("06 / Cluster Summary")
-
-    st.dataframe(
-        cluster_summary,
-        use_container_width=True
-    )
+    st.dataframe(summary, use_container_width=True)
 
 
 # ============================================================
-# 14. NEW CUSTOMER PREDICTION
+# 20. PREDICTION
 # ============================================================
 
-with prediction_tab:
+with tab_prediction:
+    render_html("""
+    <div class="section-kicker">PREDICTION STUDIO / 06</div>
+    <div class="section-heading">Meet your next customer.</div>
+    """)
 
-    st.header("Predict a new customer segment.")
+    render_html("""
+    <div class="panel">
+        <div class="panel-title">New Customer Classification</div>
+        <div class="panel-caption">
+            Enter customer information. The trained K-Means model
+            will assign the customer to the nearest cluster.
+        </div>
+    </div>
+    """)
 
-    st.caption(
-        "Enter a customer's details and let the trained K-Means "
-        "model assign the closest cluster."
-    )
+    a, b, c = st.columns(3)
 
-    p1, p2, p3 = st.columns(3)
-
-    with p1:
+    with a:
         new_age = st.number_input(
             "Customer Age",
             min_value=1,
@@ -1251,7 +1791,7 @@ with prediction_tab:
             value=25
         )
 
-    with p2:
+    with b:
         new_income = st.number_input(
             "Annual Income (k$)",
             min_value=0.0,
@@ -1259,7 +1799,7 @@ with prediction_tab:
             step=1.0
         )
 
-    with p3:
+    with c:
         new_score = st.number_input(
             "Spending Score (1-100)",
             min_value=1,
@@ -1268,105 +1808,98 @@ with prediction_tab:
         )
 
     if st.button(
-        "✳ Predict Customer Segment",
+        "✳ PREDICT CUSTOMER SEGMENT",
         use_container_width=True
     ):
-
         new_customer = pd.DataFrame({
             "Age": [new_age],
             "Annual Income": [new_income],
             "Spending Score": [new_score]
         })
 
-        scaled_customer = scaler.transform(new_customer)
+        new_scaled = scaler.transform(new_customer)
+        predicted = int(model.predict(new_scaled)[0])
+        profile = summary.loc[predicted]
 
-        predicted_cluster = int(
-            model.predict(scaled_customer)[0]
+        st.success(
+            f"Customer assigned to Cluster {predicted}!"
         )
 
-        predicted_profile = cluster_summary.loc[predicted_cluster]
-
-        predicted_name = html.escape(
-            str(predicted_profile["Segment"])
-        )
-
-        color = COLORS[predicted_cluster % len(COLORS)]
+        color = PALETTE[predicted % len(PALETTE)]
 
         render_html(f"""
-        <div style="background:#202020;border:2px solid {color};
-        border-radius:15px;padding:25px;margin-top:20px;">
-
-            <div style="color:{color};font-size:11px;
-            font-weight:900;letter-spacing:3px;">
-                PREDICTION SUCCESSFUL
+        <div class="panel" style="background:{color};">
+            <div style="font-family:monospace;font-weight:900;">
+                PREDICTED CUSTOMER SEGMENT
             </div>
-
-            <div style="font-size:34px;font-weight:900;
-            color:#FFFFFF;margin:15px 0;">
-                Cluster {predicted_cluster}
+            <div style="font-size:38px;font-weight:900;margin-top:12px;">
+                CLUSTER {predicted}
             </div>
-
-            <div style="font-size:22px;color:{color};
-            font-weight:800;">
-                {predicted_name}
+            <div style="font-size:20px;font-weight:800;margin-top:8px;">
+                {describe_cluster(profile)}
             </div>
-
-            <div style="color:#CCCCCC;margin-top:18px;
-            line-height:2;">
-                Average cluster age:
-                {predicted_profile['Average_Age']:.1f}
-                <br>
-                Average income:
-                {predicted_profile['Average_Income']:.1f}k
-                <br>
-                Average spending:
-                {predicted_profile['Average_Spending']:.1f}
-                <br>
-                Customers in this cluster:
-                {int(predicted_profile['Customers'])}
+            <div style="font-size:14px;font-weight:700;margin-top:12px;">
+                Existing customers in this segment:
+                {int(profile['Customers'])}
             </div>
         </div>
         """)
 
-        st.success(
-            f"The new customer has been assigned to Cluster "
-            f"{predicted_cluster}."
-        )
+        st.write("### Existing segment profile")
+
+        p1, p2, p3 = st.columns(3)
+
+        p1.metric("Average Age", f"{profile['Average_Age']:.1f}")
+        p2.metric("Average Income", f"{profile['Average_Income']:.1f}k")
+        p3.metric("Average Spending", f"{profile['Average_Spending']:.1f}")
 
 
 # ============================================================
-# 15. EXPORT TAB
+# 21. EXPORT CENTRE
 # ============================================================
 
-with export_tab:
+with tab_export:
+    render_html("""
+    <div class="section-kicker">REPORT CENTRE / 07</div>
+    <div class="section-heading">Your analysis. Ready to go.</div>
+    """)
 
-    st.header("Export your customer intelligence.")
+    render_html("""
+    <div class="panel">
+        <div class="panel-title">Export Customer Insights</div>
+        <div class="panel-caption">
+            Download your customer-level clustering results
+            and segment-level summary.
+        </div>
+    </div>
+    """)
 
-    st.caption(
-        "Download the final dataset with cluster assignments."
+    st.write("### Clustered customer records")
+
+    st.dataframe(
+        results,
+        use_container_width=True,
+        height=400
     )
 
     csv_data = results.to_csv(index=False).encode("utf-8-sig")
 
     st.download_button(
-        label="↓ Download Clustered Customer CSV",
+        "↓ DOWNLOAD CUSTOMER SEGMENTS CSV",
         data=csv_data,
         file_name="customer_segments.csv",
         mime="text/csv",
         use_container_width=True
     )
 
-    st.subheader("Cluster summary")
+    st.write("### Customer segment summary")
 
-    summary_csv = (
-        cluster_summary
-        .reset_index()
-        .to_csv(index=False)
-        .encode("utf-8-sig")
-    )
+    st.dataframe(summary, use_container_width=True)
+
+    summary_csv = summary.to_csv().encode("utf-8-sig")
 
     st.download_button(
-        label="↓ Download Cluster Summary",
+        "↓ DOWNLOAD CLUSTER SUMMARY CSV",
         data=summary_csv,
         file_name="cluster_summary.csv",
         mime="text/csv",
@@ -1375,50 +1908,26 @@ with export_tab:
 
     try:
         (DATA_DIR / "customer_segments.csv").write_bytes(csv_data)
+        (DATA_DIR / "cluster_summary.csv").write_bytes(summary_csv)
 
-        (
-            DATA_DIR / "cluster_summary.csv"
-        ).write_bytes(summary_csv)
+        st.success("Results saved in the mounted data directory.")
 
-        st.success(
-            f"Results saved successfully in {DATA_DIR}"
-        )
-
-    except OSError as exc:
-        st.warning(f"Could not save results: {exc}")
-
-    st.dataframe(
-        cluster_summary,
-        use_container_width=True
-    )
+    except OSError as error:
+        st.warning(f"Could not save results: {error}")
 
 
 # ============================================================
-# 16. FOOTER
+# 22. FOOTER
 # ============================================================
-
-st.markdown("---")
 
 render_html("""
 <div class="footer">
-
-    <div class="footer-brand">
-        CLUSTERO <span class="footer-star">✳</span>
+    <div style="font-size:27px;font-weight:900;">
+        CLUSTERO ✳
     </div>
-
-    CUSTOMER SEGMENTATION · POWERED BY K-MEANS
-
-    <br>
-
-    PYTHON · PANDAS · SCIKIT-LEARN · PLOTLY · STREAMLIT · PODMAN
-
-    <br>
-
-    LINUX AND CONTAINER TECHNOLOGY CAPSTONE PROJECT
-
-    <br><br>
-
+    CUSTOMER SEGMENTATION · POWERED BY K-MEANS<br>
+    PYTHON · PANDAS · SCIKIT-LEARN · PLOTLY · STREAMLIT · PODMAN<br>
+    LINUX AND CONTAINER TECHNOLOGY CAPSTONE PROJECT<br><br>
     TURN DATA INTO DISCOVERY.
-
 </div>
 """)

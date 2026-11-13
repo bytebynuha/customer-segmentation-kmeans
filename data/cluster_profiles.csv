@@ -1,0 +1,6 @@
+Cluster,Customers,Average_Age,Average_Income,Average_Spending,Segment,Share
+0,204,31.64,88.63,84.02,High Income · High Spending,20.4
+1,204,49.75,83.46,25.1,High Income · Lower Spending,20.4
+2,213,24.44,30.26,71.51,Lower Income · High Spending,21.3
+3,204,40.52,40.98,30.29,Lower Income · Lower Spending,20.4
+4,175,57.58,52.22,57.97,Lower Income · High Spending,17.5

@@ -1,6 +1,6 @@
-﻿Cluster,Customers,Average_Age,Average_Income,Average_Spending,Share,Segment
-0,204,31.64,88.63,84.02,20.4,Premium Customers
-1,204,49.75,83.46,25.1,20.4,Careful Affluents
-2,213,24.44,30.26,71.51,21.3,Enthusiastic Spenders
-3,204,40.52,40.98,30.29,20.4,Budget Conscious
-4,175,57.58,52.22,57.97,17.5,Enthusiastic Spenders
+﻿Cluster,Customers,Average_Age,Average_Income,Average_Spending
+0,204,31.64,88.63,84.02
+1,204,49.75,83.46,25.1
+2,213,24.44,30.26,71.51
+3,204,40.52,40.98,30.29
+4,175,57.58,52.22,57.97
