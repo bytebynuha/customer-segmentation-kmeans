@@ -29,15 +29,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# High-contrast cluster colours: pink/yellow lead, with vivid blue/green accents.
 PALETTE = [
-    "#FF6FAE",
-    "#A78BFA",
-    "#43D9B8",
-    "#FFD447",
-    "#FF9878",
-    "#62B8FF",
-    "#B6DF69",
-    "#F4A6FF"
+    "#FF3F91",  # electric pink
+    "#FFC928",  # marigold yellow
+    "#2687F5",  # bright blue
+    "#20B978",  # vivid green
+    "#9B5DE5",  # violet
+    "#FF7043",  # coral orange
+    "#00AFC1",  # turquoise
+    "#E84A8A",  # rose
+    "#8DBF26",  # lime green
+    "#F08AC5"   # soft magenta
 ]
 
 FEATURES = ["Age", "Annual Income", "Spending Score"]
@@ -65,11 +68,12 @@ st.markdown("""
 
 :root {
     --ink: #191923;
-    --cream: #FFF9F1;
+    --cream: #FFF9F2;
     --pink: #FFB4D2;
-    --purple: #BDA9FF;
+    --purple: #F6A7C6;
     --yellow: #FFD447;
-    --mint: #9BE8D3;
+    --mint: #BCEBDD;
+    --blue: #B9DDF7;
     --coral: #FF9878;
     --border: #191923;
 }
@@ -112,9 +116,9 @@ p, label, li, span {
 [data-testid="stSidebar"] {
     background: linear-gradient(
         160deg,
-        #FFD966 0%,
-        #FFB8D0 48%,
-        #C6B4FF 100%
+        #FFE18A 0%,
+        #FFC0D5 58%,
+        #FFF0C2 100%
     ) !important;
     border-right: 3px solid var(--ink);
 }
@@ -180,8 +184,8 @@ p, label, li, span {
     background: linear-gradient(
         115deg,
         #FFD95B 0%,
-        #FFB1C9 53%,
-        #BDA9FF 100%
+        #FFAAC8 56%,
+        #FFE8A3 100%
     );
     box-shadow: 9px 9px 0 var(--ink);
     animation: appear .65s ease-out;
@@ -322,7 +326,7 @@ p, label, li, span {
 }
 
 .metric-card.pink { background: #FFB4D2; }
-.metric-card.purple { background: #BDA9FF; }
+.metric-card.purple { background: #FFC247; }
 .metric-card.yellow { background: #FFD447; }
 .metric-card.mint { background: #9BE8D3; }
 
@@ -361,7 +365,7 @@ p, label, li, span {
 
 .segment-number {
     font-family: 'Space Mono', monospace;
-    color: #7954E8;
+    color: #B52D61;
     font-size: 11px;
     font-weight: 700;
 }
@@ -574,7 +578,7 @@ div[data-testid="stCaptionContainer"] p {
     text-align: center;
     padding: 28px;
     margin-top: 35px;
-    background: linear-gradient(100deg,#FFD447,#FFB4D2,#BDA9FF);
+    background: linear-gradient(100deg,#FFD447,#FFB4D2,#FFC247);
     border: 2px solid var(--ink);
     border-radius: 12px;
     box-shadow: 5px 5px 0 var(--ink);
@@ -613,6 +617,283 @@ div[data-testid="stCaptionContainer"] p {
         padding:1rem;
     }
 }
+
+
+.chart-selection-note {
+    display: inline-block;
+    margin: 10px 0 16px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(121,84,232,.25);
+    background: rgba(255,255,255,.76);
+    color: #51465D;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .8px;
+    box-shadow: 0 6px 16px rgba(35,25,55,.07);
+}
+
+.insight-card {
+    min-height: 150px;
+    padding: 20px;
+    margin: 8px 0 14px;
+    border: 1px solid rgba(255,255,255,.9);
+    border-left: 4px solid #FF9FC4;
+    border-radius: 16px;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 28px rgba(35,25,55,.08);
+    animation: clusteroFadeUp .5s ease both;
+}
+.insight-eyebrow {
+    color: #B52D61;
+    font: 700 10px 'Space Mono', monospace;
+    letter-spacing: 1.3px;
+}
+.insight-title {
+    margin: 8px 0;
+    color: #191923;
+    font-size: 18px;
+    font-weight: 900;
+}
+.insight-copy {
+    color: #49434F;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.7;
+}
+
+/* ============================================================
+   CLUSTERO MODERN GLASS UI + MICRO-INTERACTIONS
+   ============================================================ */
+
+@keyframes clusteroFadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes clusteroGlow {
+    0%, 100% { box-shadow: 0 10px 30px rgba(121,84,232,.10); }
+    50%      { box-shadow: 0 14px 38px rgba(255,111,174,.22); }
+}
+
+@keyframes clusteroFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+}
+
+.panel, .metric-card, .segment-card, [data-testid="stMetric"],
+[data-testid="stDataFrame"], div[data-testid="stExpander"] {
+    background: rgba(255,255,255,.62) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+    border: 1px solid rgba(255,255,255,.82) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 12px 34px rgba(35,25,55,.09), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+
+.panel, .metric-card, .segment-card {
+    animation: clusteroFadeUp .55s ease both;
+}
+
+.panel:hover, .segment-card:hover, .metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 42px rgba(35,25,55,.15) !important;
+}
+
+.hero {
+    border-radius: 24px !important;
+    box-shadow: 0 20px 55px rgba(25,25,35,.16) !important;
+    animation: clusteroFadeUp .7s ease both, clusteroGlow 7s ease-in-out infinite;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px !important;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,.45) !important;
+    backdrop-filter: blur(14px);
+}
+
+.stTabs [data-baseweb="tab"] {
+    min-height: 52px !important;
+    padding: 13px 22px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(25,25,35,.14) !important;
+    box-shadow: 0 5px 14px rgba(25,25,35,.07) !important;
+    transition: all .22s ease !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    transform: translateY(-3px);
+    background: #FFF0F7 !important;
+}
+
+.stRadio [role="radiogroup"] {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
+    gap: 12px !important;
+}
+
+.stRadio [role="radiogroup"] label {
+    min-height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 12px 16px !important;
+    border: 1.5px solid rgba(25,25,35,.16) !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,.72) !important;
+    box-shadow: 0 7px 18px rgba(25,25,35,.07) !important;
+    transition: all .2s ease !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+}
+
+.stRadio [role="radiogroup"] label:hover {
+    transform: translateY(-3px);
+    border-color: #FF78B9 !important;
+    background: #FFF0F7 !important;
+}
+
+.stRadio [role="radiogroup"] label:has(input:checked) {
+    background: linear-gradient(135deg, #FFD8E8, #FFE7A0) !important;
+    border: 2px solid #B52D61 !important;
+    box-shadow: 0 9px 24px rgba(121,84,232,.17) !important;
+}
+
+.stButton > button, .stDownloadButton > button {
+    min-height: 54px !important;
+    border-radius: 13px !important;
+    box-shadow: 0 8px 20px rgba(25,25,35,.13) !important;
+    transition: transform .2s ease, box-shadow .2s ease !important;
+}
+
+.stButton > button:hover, .stDownloadButton > button:hover {
+    transform: translateY(-3px) scale(1.01) !important;
+    box-shadow: 0 13px 28px rgba(25,25,35,.18) !important;
+}
+
+[data-testid="stPlotlyChart"] {
+    padding: 12px !important;
+    border: 1px solid rgba(255,255,255,.9) !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.60) !important;
+    backdrop-filter: blur(14px) !important;
+    box-shadow: 0 12px 30px rgba(35,25,55,.08) !important;
+    animation: clusteroFadeUp .45s ease both;
+}
+
+div[data-testid="stExpander"] {
+    overflow: hidden;
+}
+
+div[data-testid="stExpander"] summary {
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    padding: 14px 16px !important;
+}
+
+@media (max-width: 850px) {
+    .stRadio [role="radiogroup"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+/* CLUSTERO NEO-BRUTALIST PINK + YELLOW OVERRIDES */
+:root { --ink:#24202A; --cream:#FFF9F2; --pink:#FFB4D2; --hot-pink:#F04483; --yellow:#FFD447; --paper:#FFFDF9; --soft-blue:#B9DDF7; --soft-green:#BCEBDD; }
+.stApp, [data-testid="stAppViewContainer"] {
+  background: radial-gradient(circle at 92% 2%,rgba(255,180,210,.24),transparent 26%),
+              radial-gradient(circle at 4% 34%,rgba(255,212,71,.18),transparent 24%),
+              radial-gradient(circle at 96% 72%,rgba(105,201,194,.13),transparent 20%),
+              radial-gradient(circle at 8% 88%,rgba(121,188,235,.12),transparent 18%),#FFF9F2 !important;
+  color:#24202A !important;
+}
+.main .block-container { max-width:1540px !important; padding:1.25rem clamp(1rem,2.3vw,2.4rem) 3rem !important; }
+[data-testid="stSidebar"] { background:linear-gradient(165deg,#FFE18A 0%,#FFC0D5 48%,#D9F0E7 76%,#DCEEFF 100%) !important; border-right:2px solid #24202A !important; }
+[data-testid="stSidebar"] * { color:#24202A !important; }
+.hero { background:linear-gradient(118deg,#FFD95B 0%,#FFAAC8 48%,#FFE8A3 76%,#D9F0E7 100%) !important; border:2px solid #24202A !important; border-radius:16px !important; box-shadow:7px 7px 0 #24202A !important; }
+.panel,.segment-card,.metric-card { border:2px solid #24202A !important; border-radius:12px !important; box-shadow:4px 4px 0 #24202A !important; background:#FFFDF9 !important; backdrop-filter:none !important; }
+.metric-card.pink { background:#FFB4D2 !important; }
+.metric-card.yellow { background:#FFD447 !important; }
+.metric-card.purple { background:#F6A7C6 !important; }
+.metric-card.mint { background:#BCEBDD !important; }
+.metric-card.blue { background:#B9DDF7 !important; }
+.panel:hover,.segment-card:hover,.metric-card:hover { transform:translateY(-3px) !important; box-shadow:6px 6px 0 #24202A !important; }
+.stButton > button,.stDownloadButton > button,[data-testid="stFileUploader"] button {
+  background:#FFB4D2 !important; color:#24202A !important; border:2px solid #24202A !important;
+  border-radius:8px !important; box-shadow:3px 3px 0 #24202A !important; font-weight:800 !important;
+  min-height:44px !important; transition:transform .16s ease,box-shadow .16s ease,background .16s ease !important;
+}
+.stButton > button *,.stDownloadButton > button *,[data-testid="stFileUploader"] button * { color:#24202A !important; opacity:1 !important; }
+.stButton > button:hover,.stDownloadButton > button:hover,[data-testid="stFileUploader"] button:hover {
+  background:#FFD447 !important; color:#24202A !important; transform:translate(-2px,-2px) !important; box-shadow:5px 5px 0 #24202A !important;
+}
+.stRadio [role="radiogroup"] { display:flex !important; flex-wrap:wrap !important; gap:10px !important; }
+.stRadio [role="radiogroup"] > label {
+  background:#FFFDF9 !important; color:#24202A !important; border:2px solid #24202A !important;
+  border-radius:9px !important; box-shadow:3px 3px 0 #24202A !important; padding:10px 16px !important;
+  min-height:44px !important; font-weight:800 !important; transition:transform .16s ease,background .16s ease !important;
+}
+.stRadio [role="radiogroup"] > label * { color:#24202A !important; }
+.stRadio [role="radiogroup"] > label:hover { background:#FFE7A0 !important; transform:translateY(-2px) !important; }
+.stRadio [role="radiogroup"] > label:has(input:checked) { background:#FFB4D2 !important; border:2px solid #24202A !important; box-shadow:4px 4px 0 #24202A !important; }
+.stSelectbox [data-baseweb="select"] > div,.stMultiSelect [data-baseweb="select"] > div,.stNumberInput input {
+  background:#FFFDF9 !important; color:#24202A !important; border:2px solid #24202A !important; border-radius:8px !important;
+}
+.stSelectbox [data-baseweb="select"] *,.stMultiSelect [data-baseweb="select"] * { color:#24202A !important; }
+[data-testid="stAlert"] { background:#FFF0B8 !important; border:2px solid #24202A !important; border-radius:9px !important; color:#24202A !important; }
+[data-testid="stAlert"] * { color:#24202A !important; }
+[data-testid="stPlotlyChart"] {
+  background:#FFFDF9 !important; border:2px solid #24202A !important; border-radius:12px !important;
+  padding:10px 10px 14px !important; box-shadow:4px 4px 0 #24202A !important; overflow:visible !important;
+  width:100% !important; min-width:0 !important; box-sizing:border-box !important;
+}
+[data-testid="stDataFrame"] { border:2px solid #24202A !important; border-radius:10px !important; box-shadow:3px 3px 0 #24202A !important; }
+.chart-selection-note { background:#FFF0B8 !important; color:#24202A !important; border:2px solid #24202A !important; border-radius:8px !important; box-shadow:3px 3px 0 #24202A !important; }
+.section-kicker { color:#B52D61 !important; }
+.insight-card { background:#FFFDF9 !important; border:2px solid #24202A !important; border-left:6px solid #F04483 !important; border-radius:10px !important; box-shadow:3px 3px 0 #24202A !important; }
+.footer { background:linear-gradient(100deg,#FFD447,#FFB4D2) !important; border:2px solid #24202A !important; border-radius:12px !important; box-shadow:5px 5px 0 #24202A !important; }
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}
+
+/* POP COLOUR CHARTS + EXPLANATORY MICRO-INTERACTIONS */
+:root { --electric-blue:#2687F5; --vivid-green:#20B978; --hot-pink:#FF3F91; --marigold:#FFC928; }
+[data-testid="stPlotlyChart"] {
+  border:2px solid #24202A !important;
+  box-shadow:5px 5px 0 #24202A, 0 0 0 3px rgba(38,135,245,.08) !important;
+  transition:box-shadow .22s ease !important;
+  overflow:visible !important; width:100% !important; min-width:0 !important;
+  box-sizing:border-box !important; position:relative !important;
+}
+[data-testid="stPlotlyChart"]:hover { box-shadow:7px 8px 0 #24202A, 0 0 0 4px rgba(32,185,120,.16) !important; }
+[data-testid="stPlotlyChart"] > div,
+[data-testid="stPlotlyChart"] .js-plotly-plot,
+[data-testid="stPlotlyChart"] .plot-container,
+[data-testid="stPlotlyChart"] .svg-container {
+  width:100% !important; max-width:100% !important; min-width:0 !important;
+  box-sizing:border-box !important;
+}
+[data-testid="stPlotlyChart"] .modebar-container { right:8px !important; top:6px !important; }
+[data-testid="stHorizontalBlock"] > [data-testid="column"] { min-width:0 !important; }
+.stPopover > button { background:linear-gradient(110deg,#B9DDF7,#BCEBDD) !important; border:2px solid #24202A !important; border-radius:999px !important; box-shadow:3px 3px 0 #24202A !important; font-weight:900 !important; }
+[data-testid="stPopover"] { border:2px solid #24202A !important; border-radius:12px !important; box-shadow:5px 5px 0 #24202A !important; }
+.chart-tip { display:inline-block; margin:5px 0 12px; padding:9px 13px; border:2px solid #24202A; border-radius:10px; background:linear-gradient(105deg,#DCEEFF,#DDF8E9); box-shadow:3px 3px 0 #24202A; font-size:12px; font-weight:700; animation:tipPop .45s ease both; }
+@keyframes tipPop { from {opacity:0;transform:translateY(8px) scale(.98)} to {opacity:1;transform:translateY(0) scale(1)} }
+.stSlider [data-baseweb="slider"] div[role="slider"] { background:#2687F5 !important; border:2px solid #24202A !important; }
+.stCheckbox label { font-weight:800 !important; }
+
+/* Responsive chart-fit safeguards: preserve axes, legends and toolbars. */
+[data-testid="stPlotlyChart"] { padding:8px 10px 14px !important; overflow:visible !important; }
+[data-testid="stPlotlyChart"] iframe { width:100% !important; max-width:100% !important; }
+[data-testid="stPlotlyChart"] .main-svg { max-width:100% !important; }
+@media (max-width: 900px) {
+  .main .block-container { padding-left:.75rem !important; padding-right:.75rem !important; }
+  [data-testid="stPlotlyChart"] { padding:5px 5px 10px !important; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -776,44 +1057,69 @@ def style_chart(fig, title, height=620):
             font=dict(size=22, color="#191923"),
             x=0.03
         ),
-        paper_bgcolor="rgba(255,255,255,0.75)",
-        plot_bgcolor="rgba(255,255,255,0.45)",
+        paper_bgcolor="#FFFDF9",
+        plot_bgcolor="#FFFDF9",
+        autosize=True,
         font=dict(
             family="Arial",
             color="#191923",
             size=13
         ),
         height=height,
-        margin=dict(l=65, r=40, t=85, b=70),
+        margin=dict(l=82, r=42, t=88, b=108, autoexpand=True),
         legend=dict(
             title="Customer Segments",
-            bgcolor="rgba(255,255,255,0.7)",
-            bordercolor="#191923",
+            orientation="h",
+            yanchor="top",
+            y=-0.24,
+            xanchor="center",
+            x=0.5,
+            bgcolor="rgba(255,247,236,0.96)",
+            bordercolor="#24202A",
             borderwidth=1,
-            font=dict(size=13, color="#191923")
+            font=dict(size=12, color="#191923")
         ),
         hoverlabel=dict(
             bgcolor="#191923",
             bordercolor="#FFD447",
             font=dict(color="white", size=13)
         ),
-        hovermode="closest"
+        hovermode="closest",
+        transition=dict(duration=420, easing="cubic-in-out")
     )
 
     fig.update_xaxes(
         showgrid=True,
-        gridcolor="#E7DFE5",
+        gridcolor="rgba(38, 135, 245, 0.16)",
+        gridwidth=1,
+        zeroline=False,
+        showline=True,
+        linecolor="rgba(55, 45, 70, 0.35)",
+        linewidth=1,
         color="#191923",
         title_font=dict(size=14, color="#191923"),
-        tickfont=dict(size=12, color="#191923")
+        title_standoff=16,
+        tickfont=dict(size=12, color="#51465D"),
+        ticks="outside",
+        ticklen=5,
+        automargin=True
     )
 
     fig.update_yaxes(
         showgrid=True,
-        gridcolor="#E7DFE5",
+        gridcolor="rgba(38, 135, 245, 0.16)",
+        gridwidth=1,
+        zeroline=False,
+        showline=True,
+        linecolor="rgba(55, 45, 70, 0.35)",
+        linewidth=1,
         color="#191923",
         title_font=dict(size=14, color="#191923"),
-        tickfont=dict(size=12, color="#191923")
+        title_standoff=16,
+        tickfont=dict(size=12, color="#51465D"),
+        ticks="outside",
+        ticklen=5,
+        automargin=True
     )
 
     return fig
@@ -827,6 +1133,8 @@ def cluster_color_map(cluster_ids):
 
 
 def show_chart(fig):
+    """Render a responsive Plotly figure inside its Streamlit column."""
+    fig.update_layout(autosize=True)
     st.plotly_chart(
         fig,
         use_container_width=True,
@@ -839,7 +1147,7 @@ def show_chart(fig):
 # 6. CHART FUNCTIONS
 # ============================================================
 
-def make_scatter(results, x, y, centers=None, title="Customer Segmentation"):
+def make_scatter(results, x, y, centers=None, title="Customer Segmentation", marker_size=13, point_opacity=0.88):
     data = results.copy()
     data["Cluster"] = data["Cluster"].astype(str)
 
@@ -858,15 +1166,17 @@ def make_scatter(results, x, y, centers=None, title="Customer Segmentation"):
             "Spending Score",
             "Cluster"
         ],
-        opacity=0.88,
+        opacity=point_opacity,
         render_mode="webgl"
     )
 
     fig.update_traces(
         marker=dict(
-            size=13,
-            line=dict(color="#191923", width=0.8)
-        )
+            size=marker_size,
+            line=dict(color="#24202A", width=1.15),
+            sizemin=5
+        ),
+        selector=dict(mode="markers")
     )
 
     if centers is not None:
@@ -884,8 +1194,8 @@ def make_scatter(results, x, y, centers=None, title="Customer Segmentation"):
             marker=dict(
                 symbol="x",
                 size=22,
-                color="#191923",
-                line=dict(color="#FFD447", width=4)
+                color="#24202A",
+                line=dict(color="#2687F5", width=4)
             )
         ))
 
@@ -896,7 +1206,7 @@ def make_scatter(results, x, y, centers=None, title="Customer Segmentation"):
         dragmode="pan"
     )
 
-    return style_chart(fig, title, 680)
+    return style_chart(fig, title, 720)
 
 
 def make_3d(results):
@@ -919,20 +1229,31 @@ def make_3d(results):
     fig.update_traces(
         marker=dict(
             size=6,
-            line=dict(color="#191923", width=0.5)
+            line=dict(color="#24202A", width=0.8)
         )
     )
 
+    axis_3d_style = dict(
+        color="#191923",
+        showgrid=True,
+        gridcolor="rgba(232, 62, 121, 0.16)",
+        zeroline=False,
+        showbackground=True,
+        backgroundcolor="#FFF7EC"
+    )
     fig.update_layout(
-        paper_bgcolor="rgba(255,255,255,.8)",
-        font=dict(color="#191923", size=13),
-        height=760,
-        margin=dict(l=15, r=15, t=75, b=15),
+        paper_bgcolor="#FFFDF9",
+        font=dict(color="#24202A", size=13),
+        autosize=True,
+        height=700,
+        margin=dict(l=48, r=48, t=82, b=58, autoexpand=True),
         scene=dict(
-            bgcolor="rgba(255,255,255,.4)",
-            xaxis=dict(title="Age", color="#191923"),
-            yaxis=dict(title="Annual Income", color="#191923"),
-            zaxis=dict(title="Spending Score", color="#191923")
+            aspectmode="cube",
+            camera=dict(eye=dict(x=1.55, y=1.55, z=1.25)),
+            bgcolor="#FFFDF9",
+            xaxis=dict(title="Age", **axis_3d_style),
+            yaxis=dict(title="Annual Income", **axis_3d_style),
+            zaxis=dict(title="Spending Score", **axis_3d_style)
         )
     )
 
@@ -950,37 +1271,14 @@ def make_bubble(results):
             results["Cluster"].unique()
         ),
         hover_data=["CustomerID", "Age"],
-        size_max=32,
-        opacity=0.85
+        size_max=38,
+        opacity=0.90
     )
 
     return style_chart(
         fig,
         "Bubble Chart — Income, Spending and Age",
-        680
-    )
-
-
-def make_density(results):
-    fig = px.density_heatmap(
-        results,
-        x="Annual Income",
-        y="Spending Score",
-        nbinsx=25,
-        nbinsy=25,
-        color_continuous_scale=[
-            "#FFF9F1",
-            "#BDA9FF",
-            "#FF78B9",
-            "#FFD447"
-        ],
-        hover_data=["count"]
-    )
-
-    return style_chart(
-        fig,
-        "Customer Density — Income vs Spending",
-        680
+        720
     )
 
 
@@ -1005,7 +1303,7 @@ def make_box(results):
     return style_chart(
         fig,
         "Spending Score Distribution by Segment",
-        680
+        720
     )
 
 
@@ -1017,7 +1315,7 @@ def make_elbow(ks, inertias, selected_k):
         y=inertias,
         mode="lines+markers",
         name="Inertia",
-        line=dict(color="#7954E8", width=4),
+        line=dict(color="#B52D61", width=4),
         marker=dict(
             size=13,
             color=PALETTE[:len(ks)],
@@ -1121,31 +1419,77 @@ def make_donut(results):
 
 
 def make_spending_chart(summary):
-    fig = go.Figure(go.Bar(
-        x=[f"Cluster {i}" for i in summary.index],
-        y=summary["Average_Spending"],
+    """Build a stable, fully categorical spending comparison chart.
+
+    Explicit category ordering and plain Python lists prevent Plotly from
+    reusing stale category positions when the number of clusters changes.
+    """
+    chart_summary = summary.copy()
+    chart_summary = chart_summary.loc[
+        chart_summary["Average_Spending"].notna()
+    ].sort_index()
+
+    cluster_labels = [f"Cluster {int(cluster_id)}" for cluster_id in chart_summary.index]
+    spending_values = pd.to_numeric(
+        chart_summary["Average_Spending"], errors="coerce"
+    ).astype(float).tolist()
+    cluster_colors = [
+        PALETTE[int(cluster_id) % len(PALETTE)]
+        for cluster_id in chart_summary.index
+    ]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=cluster_labels,
+        y=spending_values,
+        name="Average spending score",
         marker=dict(
-            color=[
-                PALETTE[int(i) % len(PALETTE)]
-                for i in summary.index
-            ],
-            line=dict(color="#191923", width=2)
+            color=cluster_colors,
+            line=dict(color="#191923", width=2),
         ),
-        text=summary["Average_Spending"].round(1),
+        width=0.62,
+        text=[f"{value:.1f}" for value in spending_values],
         textposition="outside",
+        cliponaxis=False,
         textfont=dict(color="#191923", size=14),
-        hovertemplate="%{x}<br>Average score: %{y:.2f}<extra></extra>"
+        customdata=cluster_labels,
+        hovertemplate=(
+            "<b>%{customdata}</b><br>"
+            "Average spending score: %{y:.1f}<extra></extra>"
+        )
     ))
 
+    max_value = max(spending_values, default=100.0)
+    y_max = max(100.0, max_value * 1.18)
     fig.update_layout(
-        xaxis_title="Customer Segment",
-        yaxis_title="Average Spending Score"
+        xaxis=dict(
+            title="Customer Segment",
+            type="category",
+            categoryorder="array",
+            categoryarray=cluster_labels,
+            tickmode="array",
+            tickvals=cluster_labels,
+            ticktext=cluster_labels,
+            automargin=True,
+            fixedrange=False
+        ),
+        yaxis=dict(
+            title="Average Spending Score",
+            range=[0, y_max],
+            rangemode="tozero",
+            automargin=True,
+            fixedrange=False
+        ),
+        bargap=0.28,
+        showlegend=False,
+        uniformtext=dict(minsize=11, mode="show")
     )
 
+    fig.update_layout(uirevision="spending-comparison-v2")
     return style_chart(
         fig,
         "Average Spending Score by Segment",
-        510
+        540
     )
 
 
@@ -1159,7 +1503,7 @@ render_html("""
         <div class="brand">CLUSTER<span class="brand-star">✳</span>O</div>
         <div class="brand-tag">CUSTOMER INTELLIGENCE STUDIO</div>
     </div>
-    <div class="topbar-tag">LIVE CUSTOMER ANALYTICS · K-MEANS</div>
+    <div class="topbar-tag">CLUSTERO 2.1 · LIVE CUSTOMER ANALYTICS · K-MEANS</div>
 </div>
 """)
 
@@ -1251,9 +1595,9 @@ if uploaded is None:
     cards = [
         (c1, "#FFB4D2", "STEP 01", "Upload Data",
          "Upload your customer-level CSV dataset.", "▤"),
-        (c2, "#BDA9FF", "STEP 02", "Discover Groups",
+        (c2, "#FFD447", "STEP 02", "Discover Groups",
          "Apply K-Means and uncover customer patterns.", "◉"),
-        (c3, "#9BE8D3", "STEP 03", "Predict Segments",
+        (c3, "#FFB4D2", "STEP 03", "Predict Segments",
          "Assign new customers to their predicted segments.", "✳")
     ]
 
@@ -1407,6 +1751,29 @@ with right:
         </div>
     </div>
     """)
+
+    with st.expander("✳  K-MEANS EXPLAINER  |  CLICK THIS PLACARD TO LEARN HOW IT WORKS", expanded=False):
+        st.markdown("""
+        ### K-Means clustering
+        K-Means is an **unsupervised machine-learning algorithm** that groups
+        customers into K clusters based on how similar their selected features are.
+
+        **How CLUSTERO uses it**
+        1. **Choose K:** decide how many customer groups to create.
+        2. **Scale the data:** StandardScaler puts age, income and spending score
+           on comparable scales.
+        3. **Place centroids:** the algorithm starts with K cluster centres.
+        4. **Assign customers:** each customer is assigned to the nearest centre.
+        5. **Update and repeat:** centres move to the mean of their assigned
+           customers until the assignments stabilise.
+
+        **Why it is useful:** it can reveal customer groups with different
+        income and spending behaviours without needing pre-labelled categories.
+
+        **Important:** cluster numbers are labels, not rankings. Cluster 0 is
+        not inherently better or worse than Cluster 1.
+        """)
+        st.caption("CLUSTERO uses Age, Annual Income and Spending Score as its three clustering features.")
 
 
 # ============================================================
@@ -1659,6 +2026,23 @@ with tab_analytics:
         "and image export."
     )
 
+    guide_col, control_col = st.columns([1, 2])
+    with guide_col:
+        with st.popover("💡 Chart guide — what am I seeing?", use_container_width=True):
+            st.markdown("""
+            **2D Scatter:** each dot is one customer; colour identifies its K-Means cluster.
+
+            **3D Scatter:** the same customers across Age, Income and Spending Score. Drag to rotate.
+
+            **Bubble Chart:** bubble size represents age; position compares income and spending.
+
+            **Box Plot:** compares the spread, median and outliers of spending scores by cluster.
+
+            **Elbow Method:** helps compare within-cluster variation as K changes. A lower value alone does not prove the best K; look for the bend.
+            """)
+    with control_col:
+        st.markdown("<div class='chart-tip'>✳ PRO TIP · Hover over any point or bar for customer-level details. Use the Plotly toolbar to zoom, pan, reset or save a chart.</div>", unsafe_allow_html=True)
+
     st.write("### 01 / Elbow Method")
 
     show_chart(make_elbow(ks, inertias, k))
@@ -1672,68 +2056,114 @@ with tab_analytics:
 
     st.write("### 02 / Choose Your Visualisation")
 
+    visualisation_options = [
+        "2D Scatter",
+        "3D Scatter",
+        "Bubble Chart",
+        "Box Plot"
+    ]
+    # Reset any legacy chart selection that is no longer supported.
+    if st.session_state.get("clustero_visualisation") not in visualisation_options:
+        st.session_state["clustero_visualisation"] = "2D Scatter"
+
+    st.caption("Choose a view. The chart updates immediately when you switch.")
     visualisation = st.radio(
-        "Select your graph",
-        [
-            "2D Scatter",
-            "3D Scatter",
-            "Bubble Chart",
-            "Density Plot",
-            "Box Plot"
-        ],
+        "Chart type",
+        options=visualisation_options,
         horizontal=True,
-        key="visualisation_choice"
+        key="clustero_visualisation",
+        label_visibility="collapsed"
+    )
+    st.markdown(
+        f"<div class='chart-selection-note'>NOW VIEWING&nbsp;&nbsp; / &nbsp;&nbsp;<b>{visualisation}</b></div>",
+        unsafe_allow_html=True
     )
 
-    st.write("### 03 / Feature Selection")
+    st.write("### 03 / Explore a customer segment")
+    segment_options = ["All clusters"] + [f"Cluster {int(c)}" for c in sorted(results["Cluster"].unique())]
+    selected_segment = st.selectbox(
+        "Focus the selected chart on",
+        segment_options,
+        key="analytics_segment_filter",
+        help="Filter the selected visualisation to one cluster, or keep all clusters visible."
+    )
+    chart_results = results.copy()
+    chart_centers = centers
+    if selected_segment != "All clusters":
+        selected_cluster_id = int(selected_segment.split()[-1])
+        chart_results = chart_results[chart_results["Cluster"] == selected_cluster_id]
+        chart_centers = centers[[selected_cluster_id]]
+    st.caption(f"Showing {len(chart_results):,} of {len(results):,} customers in the selected view.")
 
-    x_col, y_col = st.columns(2)
-
-    with x_col:
-        x_axis = st.selectbox(
-            "Horizontal axis",
-            FEATURES,
-            index=1,
-            key="chart_x"
-        )
-
-    with y_col:
-        y_axis = st.selectbox(
-            "Vertical axis",
-            FEATURES,
-            index=2,
-            key="chart_y"
-        )
+    # Live chart controls are intentionally lightweight and affect the 2D view.
+    marker_size = 13
+    point_opacity = 0.88
+    if visualisation == "2D Scatter":
+        with st.expander("🎛️ Fine-tune the chart", expanded=False):
+            size_col, opacity_col, centroid_col = st.columns(3)
+            with size_col:
+                marker_size = st.slider("Point size", 5, 24, 13, key="scatter_point_size")
+            with opacity_col:
+                point_opacity = st.slider("Point opacity", 0.35, 1.0, 0.88, 0.05, key="scatter_point_opacity")
+            with centroid_col:
+                show_centroids = st.checkbox("Show cluster centres", value=True, key="show_cluster_centres")
+        if not st.session_state.get("show_cluster_centres", True):
+            chart_centers_for_view = None
+        else:
+            chart_centers_for_view = chart_centers
+    else:
+        chart_centers_for_view = chart_centers
 
     if visualisation == "2D Scatter":
+        st.write("### 04 / Choose chart features")
+        x_col, y_col = st.columns(2)
+
+        with x_col:
+            x_axis = st.selectbox(
+                "Horizontal axis",
+                FEATURES,
+                index=1,
+                key="chart_x"
+            )
+
+        with y_col:
+            y_axis = st.selectbox(
+                "Vertical axis",
+                FEATURES,
+                index=2,
+                key="chart_y"
+            )
+
         if x_axis == y_axis:
-            st.warning("Select two different features.")
+            st.warning("Choose two different features for the horizontal and vertical axes.")
         else:
             show_chart(
                 make_scatter(
-                    results,
+                    chart_results,
                     x_axis,
                     y_axis,
-                    centers,
-                    f"{x_axis} vs {y_axis} — Customer Segmentation"
+                    chart_centers_for_view,
+                    f"{x_axis} vs {y_axis} — Customer Segmentation",
+                    marker_size=marker_size,
+                    point_opacity=point_opacity
                 )
             )
 
     elif visualisation == "3D Scatter":
-        show_chart(make_3d(results))
+        st.markdown("<div class='chart-tip'>🧭 ROTATE THE VIEW · Drag to rotate, scroll to zoom, and hover over a point to inspect its customer ID.</div>", unsafe_allow_html=True)
+        show_chart(make_3d(chart_results))
 
     elif visualisation == "Bubble Chart":
-        show_chart(make_bubble(results))
-
-    elif visualisation == "Density Plot":
-        show_chart(make_density(results))
+        st.markdown("<div class='chart-tip'>🫧 BUBBLE KEY · Larger bubbles represent older customers. Colour shows the assigned cluster.</div>", unsafe_allow_html=True)
+        show_chart(make_bubble(chart_results))
 
     elif visualisation == "Box Plot":
-        show_chart(make_box(results))
+        st.markdown("<div class='chart-tip'>📦 BOX PLOT KEY · The centre line is the median; the box shows the middle 50% of scores; points beyond whiskers may be outliers.</div>", unsafe_allow_html=True)
+        show_chart(make_box(chart_results))
 
     st.divider()
 
-    st.write("### 04 / Primary Customer Segmentation Map")
+    st.write("### 05 / Primary Customer Segmentation Map")
 
     st.caption(
         "Annual Income vs Spending Score. "
@@ -1752,13 +2182,41 @@ with tab_analytics:
 
     st.divider()
 
-    st.write("### 05 / Spending Comparison")
+    st.write("### 06 / Spending Comparison")
 
     show_chart(make_spending_chart(summary))
 
-    st.write("### 06 / Segment Statistics")
+    st.write("### 07 / Segment Statistics")
 
     st.dataframe(summary, use_container_width=True)
+
+
+    st.divider()
+    st.write("### 08 / Customer intelligence briefing")
+    st.caption("Generate a concise, data-driven interpretation of the clusters in this dataset.")
+    if st.button("✦ GENERATE CUSTOMER INSIGHTS", key="generate_cluster_insights", use_container_width=True):
+        largest_cluster = int(summary["Customers"].idxmax())
+        highest_spend_cluster = int(summary["Average_Spending"].idxmax())
+        highest_income_cluster = int(summary["Average_Income"].idxmax())
+        largest_share = summary.loc[largest_cluster, "Customers"] / len(results) * 100
+        low_spend_cluster = int(summary["Average_Spending"].idxmin())
+        insight_items = [
+            ("Largest audience", f"Cluster {largest_cluster} contains {int(summary.loc[largest_cluster, 'Customers']):,} customers ({largest_share:.1f}% of the dataset)."),
+            ("Highest spending", f"Cluster {highest_spend_cluster} has the highest average spending score ({summary.loc[highest_spend_cluster, 'Average_Spending']:.1f})."),
+            ("Highest income", f"Cluster {highest_income_cluster} has the highest average annual income ({summary.loc[highest_income_cluster, 'Average_Income']:.1f}k)."),
+            ("Potential growth audience", f"Cluster {low_spend_cluster} has the lowest average spending score ({summary.loc[low_spend_cluster, 'Average_Spending']:.1f}); consider testing engagement or personalised offers with this group.")
+        ]
+        insight_cols = st.columns(2)
+        for insight_index, (insight_title, insight_text) in enumerate(insight_items):
+            with insight_cols[insight_index % 2]:
+                render_html(f"""
+                <div class="insight-card">
+                    <div class="insight-eyebrow">DATA SIGNAL 0{insight_index + 1}</div>
+                    <div class="insight-title">{insight_title}</div>
+                    <div class="insight-copy">{insight_text}</div>
+                </div>
+                """)
+        st.caption("These findings are descriptive patterns in the uploaded dataset, not causal explanations or guaranteed future behaviour.")
 
 
 # ============================================================
@@ -1852,6 +2310,52 @@ with tab_prediction:
         p1.metric("Average Age", f"{profile['Average_Age']:.1f}")
         p2.metric("Average Income", f"{profile['Average_Income']:.1f}k")
         p3.metric("Average Spending", f"{profile['Average_Spending']:.1f}")
+
+
+        # Dynamic conclusion based on the predicted cluster's profile.
+        income_position = (
+            "above" if profile["Average_Income"] >= income_median else "below"
+        )
+        spending_position = (
+            "above" if profile["Average_Spending"] >= spending_median else "below"
+        )
+        segment_name = describe_cluster(profile)
+
+        st.markdown("### ✳ Prediction conclusion")
+        render_html(f"""
+        <div class="panel" style="
+            background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(230,222,255,.78));
+            border:1px solid rgba(121,84,232,.24);
+            border-left:6px solid {color};
+            padding:24px;
+            animation:clusteroFadeUp .6s ease both;">
+            <div style="font-family:monospace;font-size:11px;font-weight:900;
+                        letter-spacing:1.5px;color:#B52D61;">
+                CUSTOMER PROFILE SUMMARY
+            </div>
+            <div style="font-size:22px;font-weight:900;margin:9px 0 12px;color:#191923;">
+                {segment_name}
+            </div>
+            <div style="font-size:14px;line-height:1.85;color:#34303D;">
+                The predicted customer belongs to <b>Cluster {predicted}</b>.
+                This segment has an average annual income of
+                <b>{profile['Average_Income']:.1f}k</b> and an average spending
+                score of <b>{profile['Average_Spending']:.1f}</b>.
+                Compared with the dataset medians, this segment's income is
+                <b>{income_position}</b> the median and its spending is
+                <b>{spending_position}</b> the median.
+                It currently contains <b>{int(profile['Customers'])}</b>
+                customers in the uploaded dataset.
+            </div>
+            <div style="margin-top:14px;padding:12px 14px;border-radius:12px;
+                        background:rgba(255,255,255,.72);font-size:13px;
+                        font-weight:700;color:#34303D;">
+                Interpretation: {segment_name}. Use this profile to guide
+                customer communication and campaign decisions; treat it as a
+                behavioural grouping, not a guarantee of an individual's future purchases.
+            </div>
+        </div>
+        """)
 
 
 # ============================================================
